@@ -1,0 +1,23 @@
+name: DCO
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v2
+      with:
+        python-version: '>=3.6'
+    - name: Install dependencies
+      run: |
+        pip install -U dco-check
+    - name: Check DCO
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        dco-check
