@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -20,4 +21,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        dco-check
+        dco-check -v
