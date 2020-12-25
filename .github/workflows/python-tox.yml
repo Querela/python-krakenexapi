@@ -101,6 +101,9 @@ jobs:
         COVERALLS_FLAG_NAME: Python ${{ matrix.python-version }}
         CODECOV_NAME: Python ${{ matrix.python-version }}
       run: |
+        if [ "${{ matrix.toxpython }}" != "" ]; then
+          export TOXPYTHON=${{ matrix.toxpython }}
+        fi
         tox -v
     - name: On failure dumps logs
       if: failure()
