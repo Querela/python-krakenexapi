@@ -1,4 +1,5 @@
-name: DCO
+name: Check DCO
+
 on:
   pull_request:
   push:
