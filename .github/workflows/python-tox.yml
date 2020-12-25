@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [checks]
     strategy:
-      max-parallel: 1
+      # max-parallel: 1
       matrix:
         include:
         - python-version: 3.6
@@ -73,9 +73,6 @@ jobs:
         pip --version
         python -c 'import setuptools; print("setuptools", setuptools.__version__)'
         tox --version
-    - name: Decrypt coveralls credentials
-      run: |
-        openssl aes-256-cbc -K ${{ secrets.ENCRYPTED_3C84DCDC6BBE_KEY }} -iv ${{ secrets.ENCRYPTED_3C84DCDC6BBE_IV }} -in .env.enc -out .env -d
     - name: Run tox - ${{ matrix.toxenv }}
       env:
         TOXENV: ${{ matrix.toxenv }}

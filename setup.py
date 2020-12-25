@@ -29,6 +29,7 @@ setup(
         ),
         re.sub(":[a-z]+:`~?(.*?)`", r"``\1``", read("CHANGELOG.rst")),
     ),
+    long_description_content_type="text/x-rst",
     author="Erik Körner",
     author_email="ekdev@live.de",
     url="https://github.com/Querela/python-krakenexapi",

@@ -4,4 +4,6 @@ black
 
 pre-commit
 dco-check
+
+twine
 bumpversion
