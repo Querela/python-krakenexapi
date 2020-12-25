@@ -68,5 +68,8 @@ setup(
         "api",
     ],
     python_requires=">=3.6",
+    install_requires=[
+        "requests>=2.25,<3",
+    ],
     extras_require={},
 )
