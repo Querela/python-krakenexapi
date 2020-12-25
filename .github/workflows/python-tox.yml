@@ -48,6 +48,8 @@ jobs:
           toxenv: py38,codecov,coveralls
         - python-version: 3.9
           toxenv: py39,codecov,coveralls
+        - python-version: 3.10
+          toxenv: py310,codecov,coveralls
         - python-version: pypy-3.6
           toxenv: pypy3,codecov,coveralls
           toxpython: pypy3
