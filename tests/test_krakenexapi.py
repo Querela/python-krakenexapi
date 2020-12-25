@@ -1,5 +1,4 @@
-
-from krakenexapi import main
+import krakenexapi  # noqa: F401
 
 
 def test_main():

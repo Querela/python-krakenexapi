@@ -1,0 +1,5 @@
+tox
+
+black
+
+pre-commit
