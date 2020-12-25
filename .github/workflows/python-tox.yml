@@ -48,17 +48,20 @@ jobs:
       matrix:
         include:
         - python-version: '3.6'
-          toxenv: py36,codecov,coveralls
+          toxenv: py36
         - python-version: '3.7'
-          toxenv: py37,codecov,coveralls
+          toxenv: py37
         - python-version: '3.8'
-          toxenv: py38,codecov,coveralls
+          toxenv: py38
         - python-version: '3.9'
-          toxenv: py39,codecov,coveralls
-        - python-version: '3.10'
-          toxenv: py310,codecov,coveralls
+          toxenv: py39
+        - python-version: '3.10.0-alpha - 3.10'
+          toxenv: py310
         - python-version: 'pypy-3.6'
-          toxenv: pypy3,codecov,coveralls
+          toxenv: pypy3
+          toxpython: pypy3
+        - python-version: 'pypy-3.7'
+          toxenv: pypy3
           toxpython: pypy3
     steps:
     - uses: actions/checkout@v2
@@ -85,12 +88,19 @@ jobs:
     - name: Run tox - ${{ matrix.toxenv }}
       env:
         TOXENV: ${{ matrix.toxenv }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COVERALLS_FLAG_NAME: Python ${{ matrix.python-version }}
       run: |
         if [ "${{ matrix.toxpython }}" != "" ]; then
           export TOXPYTHON=${{ matrix.toxpython }}
         fi
+        tox -v
+    - name: On success send coverage - tox - codecov,coveralls
+      if: success()
+      env:
+        TOXENV: codecov,coveralls
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COVERALLS_FLAG_NAME: Python ${{ matrix.python-version }}
+        CODECOV_NAME: Python ${{ matrix.python-version }}
+      run: |
         tox -v
     - name: On failure dumps logs
       if: failure()
