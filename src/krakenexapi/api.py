@@ -9,6 +9,7 @@ from time import time
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -168,6 +169,41 @@ class RawKrakenExAPI:
 # ----------------------------------------------------------------------------
 
 
+class _OHLCEntry(NamedTuple):
+    time: int
+    open: str
+    high: str
+    low: str
+    close: str
+    vwap: str
+    volume: str
+    count: int
+
+
+class _OrderBookEntry(NamedTuple):
+    price: str
+    volume: str
+    timestamp: int
+
+
+class _RecentTradeEntry(NamedTuple):
+    price: str
+    volume: str
+    time: int
+    buy_sell: str
+    market_limit: str
+    miscellaneous: Optional[str] = None
+
+
+class _RecentSpreadEntry(NamedTuple):
+    time: int
+    bid: str
+    ask: str
+
+
+# ------------------------------------
+
+
 class BasicKrakenExAPI(RawKrakenExAPI):
     def __init__(self, key: Optional[str] = None, secret: Optional[str] = None):
         super().__init__(key=key, secret=secret)
@@ -244,6 +280,9 @@ class BasicKrakenExAPI(RawKrakenExAPI):
         result = self.query_public("OHLC", **data)
         last = result.pop("last", None)
         result = result[list(result.keys())[0]]
+
+        result = list(map(_OHLCEntry._make, result))
+
         return result, last
 
     def get_order_book(
@@ -261,6 +300,10 @@ class BasicKrakenExAPI(RawKrakenExAPI):
         result = result[list(result.keys())[0]]
         asks = result["asks"]
         bids = result["bids"]
+
+        asks = list(map(_OrderBookEntry._make, asks))
+        bids = list(map(_OrderBookEntry._make, bids))
+
         return asks, bids
 
     def get_recent_trades(
@@ -277,6 +320,9 @@ class BasicKrakenExAPI(RawKrakenExAPI):
         result = self.query_public("Trades", **data)
         last = result.pop("last", None)
         result = result[list(result.keys())[0]]
+
+        result = list(map(_RecentTradeEntry._make, result))
+
         return result, last
 
     def get_recent_spread_data(
@@ -293,6 +339,9 @@ class BasicKrakenExAPI(RawKrakenExAPI):
         result = self.query_public("Spread", **data)
         last = result.pop("last", None)
         result = result[list(result.keys())[0]]
+
+        result = list(map(_RecentSpreadEntry._make, result))
+
         return result, last
 
     # --------------------------------
