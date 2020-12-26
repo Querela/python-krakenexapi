@@ -1,5 +1,6 @@
 # tests
 tox
+pytest
 
 # code formatter + checks?
 black
