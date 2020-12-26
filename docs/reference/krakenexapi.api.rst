@@ -2,7 +2,7 @@ krakenexapi.api
 ===============
 
 
-.. automodule:: krakenexapi
+.. automodule:: krakenexapi.api
     :members:
     :undoc-members:
     :private-members:

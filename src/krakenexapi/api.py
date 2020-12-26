@@ -21,6 +21,18 @@ from . import __version__
 
 # ----------------------------------------------------------------------------
 
+
+__all__ = [
+    "RawKrakenExAPI",
+    "BasicKrakenExAPI",
+    "KrakenExError",
+    "NoPrivateKey",
+    "NoSuchAPIMethod",
+]
+
+
+# ----------------------------------------------------------------------------
+
 NONCE_OFFSET = -datetime(2020, 1, 1).timestamp()
 
 API_METHODS_PUBLIC = [
@@ -67,6 +79,25 @@ API_METHODS_PRIVATE = [
 ]
 
 
+# ----------------------------------------------------------------------------
+
+
+class KrakenExError(Exception):
+    """Generic error"""
+
+
+class NoPrivateKey(KrakenExError):
+    """Thrown if trying to use a private Kraken Exchange API without
+    a private key."""
+
+
+class NoSuchAPIMethod(KrakenExError):
+    """Error thrown if trying to use an invalid API method."""
+
+
+# ----------------------------------------------------------------------------
+
+
 class RawKrakenExAPI:
     api_domain = "https://api.kraken.com"
 
@@ -87,7 +118,7 @@ class RawKrakenExAPI:
             path = path / "kraken.key"
 
         if not path.exists():
-            raise Exception("No key file found!")
+            raise KrakenExError("No key file found!")
 
         key = None
         secret = None
@@ -121,7 +152,7 @@ class RawKrakenExAPI:
 
         result = resp.json()
         if result.get("error", None):
-            raise Exception(result["error"])
+            raise KrakenExError("Recieved response: " + ",".join(result["error"]))
         return result["result"]
 
     def _sign(self, api_path: str, data: Dict[str, Any]) -> str:
@@ -136,7 +167,8 @@ class RawKrakenExAPI:
         return signature
 
     def query_public(self, method: str, **kwargs):
-        assert method in API_METHODS_PUBLIC, f"Unknown public API method: {method}"
+        if method not in API_METHODS_PUBLIC:
+            raise NoSuchAPIMethod(f"Unknown public API method: {method}")
 
         api_path = f"/0/public/{method}"
         data = kwargs if kwargs else {}
@@ -150,7 +182,8 @@ class RawKrakenExAPI:
         data: Optional[Dict[str, Any]] = None,
         otp: Optional[str] = None,
     ):
-        assert method in API_METHODS_PRIVATE, f"Unknown private API method: {method}"
+        if method not in API_METHODS_PRIVATE:
+            raise NoSuchAPIMethod(f"Unknown private API method: {method}")
 
         api_path = f"/0/private/{method}"
         if not data:
@@ -159,6 +192,9 @@ class RawKrakenExAPI:
         data["nonce"] = self.nonce()
         if otp:
             data["otp"] = otp
+
+        if not self.__api_key or not self.__api_secret:
+            raise NoPrivateKey()
 
         headers = {"API-Key": self.__api_key, "API-Sign": self._sign(api_path, data)}
 
