@@ -167,7 +167,7 @@ class RawKrakenExAPI:
         signature = b64encode(signature)  # .decode("utf-8")
         return signature
 
-    def query_public(self, method: str, **kwargs):
+    def query_public(self, method: str, **kwargs) -> Dict[str, Any]:
         if method not in API_METHODS_PUBLIC:
             raise NoSuchAPIMethod(f"Unknown public API method: {method}")
 
@@ -178,17 +178,13 @@ class RawKrakenExAPI:
         return result
 
     def query_private(
-        self,
-        method: str,
-        data: Optional[Dict[str, Any]] = None,
-        otp: Optional[str] = None,
-    ):
+        self, method: str, otp: Optional[str] = None, **kwargs
+    ) -> Dict[str, Any]:
         if method not in API_METHODS_PRIVATE:
             raise NoSuchAPIMethod(f"Unknown private API method: {method}")
 
         api_path = f"/0/private/{method}"
-        if not data:
-            data = dict()
+        data = kwargs if kwargs else {}
 
         data["nonce"] = self.nonce()
         if otp:
@@ -355,32 +351,7 @@ class KrakenExAPICallRateLimiter:
 # ------------------------------------
 
 
-class BasicKrakenExAPI(RawKrakenExAPI):
-    def __init__(
-        self,
-        key: Optional[str] = None,
-        secret: Optional[str] = None,
-        tier: Optional[str] = None,
-    ):
-        super().__init__(key=key, secret=secret)
-        self.__crl = KrakenExAPICallRateLimiter(tier)
-
-    # --------------------------------
-
-    def _query_raw(
-        self,
-        path: str,
-        data: Dict[str, Any],
-        headers: Dict[str, Any],
-        timeout: Optional[Tuple[int, float]] = None,
-    ) -> Dict[str, Any]:
-        method = path.rsplit("/", 1)[-1]
-        self.__crl.check_call(method, wait=True)
-        result = super()._query_raw(path, data, headers, timeout)
-        return result
-
-    # --------------------------------
-
+class BasicKrakenExAPIPublicMethods:
     def _get_server_time(self) -> Dict[str, Any]:
         return self.query_public("Time")
 
@@ -623,6 +594,294 @@ class BasicKrakenExAPI(RawKrakenExAPI):
         result = list(map(_RecentSpreadEntry._make, result))
 
         return result, last
+
+    # --------------------------------
+
+
+class BasicKrakenExAPIPrivateUserDataMethods:
+    def get_account_balance(self) -> Dict[str, float]:
+        result = self.query_private("Balance")
+
+        result = _fix_float_type(result)
+
+        return result
+
+    def get_trade_balance(self, asset: Optional[str] = None) -> Dict[str, float]:
+        data = {}
+        if asset:
+            data["asset"] = asset
+
+        result = self.query_private("TradeBalance", **data)
+
+        result = _fix_float_type(result)
+
+        return result
+
+    # --------------------------------
+
+    def get_open_orders(
+        self, trades: Optional[bool] = None, userref: Optional[str] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        data = {}
+        if trades is not None:
+            data["trades"] = 1 if trades else 0
+        if userref:
+            data["userref"] = userref
+
+        result = self.query_private("OpenOrders", **data)
+
+        result = result["open"]
+        result = _fix_float_type(result)
+
+        return result
+
+    def get_closed_orders(
+        self,
+        trades: Optional[bool] = None,
+        userref: Optional[str] = None,
+        start: Optional[Union[int, str]] = None,
+        end: Optional[Union[int, str]] = None,
+        offset: Optional[int] = None,
+        closetime: Optional[str] = None,
+    ) -> Tuple[Dict[str, Dict[str, Any]], int]:
+        data = {}
+        if trades is not None:
+            data["trades"] = 1 if trades else 0
+        if userref:
+            data["userref"] = userref
+        if start:
+            data["start"] = start
+        if end:
+            data["end"] = end
+        if offset:
+            # NOTE: not sure whether it works
+            data["ofs"] = offset
+        if closetime:
+            assert closetime in ("open", "close", "both")
+            data["closetime"] = closetime
+
+        result = self.query_private("ClosedOrders", **data)
+
+        amount = result["count"]
+        result = result["closed"]
+        result = _fix_float_type(result)
+
+        return result, amount
+
+    def get_orders_info(
+        self,
+        txid: Union[str, List[str]],
+        trades: Optional[bool] = None,
+        userref: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        data = {}
+        if isinstance(txid, str):
+            txid = [txid]
+        assert len(txid) <= 50
+        data["txid"] = ",".join(txid)
+        if trades is not None:
+            data["trades"] = 1 if trades else 0
+        if userref:
+            data["userref"] = userref
+
+        result = self.query_private("QueryOrders", **data)
+
+        result = _fix_float_type(result)
+
+        return result
+
+    def get_trades_history(
+        self,
+        type: Optional[str] = None,
+        trades: Optional[bool] = None,
+        start: Optional[Union[int, str]] = None,
+        end: Optional[Union[int, str]] = None,
+        offset: Optional[int] = None,
+    ) -> Tuple[Dict[str, Dict[str, Any]], int]:
+        data = {}
+        if trades is not None:
+            data["trades"] = 1 if trades else 0
+        if start:
+            data["start"] = start
+        if end:
+            data["end"] = end
+        if offset:
+            # NOTE: not sure whether it works
+            data["ofs"] = offset
+        if type:
+            assert type in (
+                "all",
+                "any position",
+                "closed position",
+                "closing position",
+                "no position",
+            )
+            data["type"] = type
+
+        result = self.query_private("TradesHistory", **data)
+
+        amount = result["count"]
+        result = result["trades"]
+        result = _fix_float_type(result)
+
+        return result, amount
+
+    def get_trades_info(
+        self,
+        txid: Union[str, List[str]],
+        trades: Optional[bool] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        data = {}
+        if isinstance(txid, str):
+            txid = [txid]
+        assert len(txid) <= 20
+        data["txid"] = ",".join(txid)
+        if trades is not None:
+            data["trades"] = 1 if trades else 0
+
+        result = self.query_private("QueryTrades", **data)
+
+        result = _fix_float_type(result)
+
+        return result
+
+    def get_open_positions(
+        self,
+        txid: Union[str, List[str]],
+        docalcs: Optional[bool] = None,
+        trades: Optional[bool] = None,
+        consolidation: Optional[str] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        data = {}
+        if isinstance(txid, str):
+            txid = [txid]
+        data["txid"] = ",".join(txid)
+        if docalcs is not None:
+            # data["docalcs"] = 1 if docalcs else 0
+            data["docalcs"] = docalcs
+        if consolidation is not None:
+            data["consolidation"] = consolidation
+
+        result = self.query_private("OpenPositions", **data)
+
+        result = _fix_float_type(result)
+
+        return result
+
+    def get_ledgers_info(
+        self,
+        asset: Optional[Union[str, List[str]]] = None,
+        type: Optional[str] = None,
+        start: Optional[Union[int, str]] = None,
+        end: Optional[Union[int, str]] = None,
+        offset: Optional[int] = None,
+    ) -> Tuple[Dict[str, Dict[str, Any]], int]:
+        data = {}
+        if asset:
+            if isinstance(asset, str):
+                asset = [asset]
+            data["asset"] = ",".join(asset)
+        if type:
+            assert type in ("all", "deposit", "withdrawl", "trade", "margin")
+            data["type"] = type
+        if start:
+            data["start"] = start
+        if end:
+            data["end"] = end
+        if offset:
+            # NOTE: not sure whether it works
+            data["ofs"] = offset
+
+        result = self.query_private("Ledgers", **data)
+
+        amount = result["count"]
+        result = result["ledger"]
+        result = _fix_float_type(result)
+
+        return result, amount
+
+    def get_ledgers(self, lid: Union[str, List[str]]) -> Dict[str, Dict[str, Any]]:
+        data = {}
+        if isinstance(lid, str):
+            lid = [lid]
+        assert len(lid) <= 20
+        data["id"] = ",".join(lid)
+
+        result = self.query_private("QueryLedgers", **data)
+
+        result = _fix_float_type(result)
+
+        return result
+
+    # --------------------------------
+
+    def get_trade_volume(
+        self,
+        pair: Optional[Union[str, List[str]]] = None,
+        fee_info: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        data = {}
+        if pair:
+            if isinstance(pair, str):
+                pair = [pair]
+            data["pair"] = ",".join(pair)
+        if fee_info is not None:
+            data["fee-info"] = 1 if fee_info else 0
+
+        result = self.query_private("TradeVolume", **data)
+
+        result = _fix_float_type(result)
+
+        return result
+
+    # --------------------------------
+
+    # exports
+
+    # --------------------------------
+
+
+class BasicKrakenExAPIPrivateUserTradingMethods:
+    pass
+
+    # --------------------------------
+
+
+class BasicKrakenExAPIPrivateUserFundingMethods:
+    pass
+
+    # --------------------------------
+
+
+class BasicKrakenExAPI(
+    BasicKrakenExAPIPublicMethods,
+    BasicKrakenExAPIPrivateUserDataMethods,
+    BasicKrakenExAPIPrivateUserTradingMethods,
+    BasicKrakenExAPIPrivateUserFundingMethods,
+    RawKrakenExAPI,
+):
+    def __init__(
+        self,
+        key: Optional[str] = None,
+        secret: Optional[str] = None,
+        tier: Optional[str] = None,
+    ):
+        super().__init__(key=key, secret=secret)
+        self.__crl = KrakenExAPICallRateLimiter(tier)
+
+    # --------------------------------
+
+    def _query_raw(
+        self,
+        path: str,
+        data: Dict[str, Any],
+        headers: Dict[str, Any],
+        timeout: Optional[Tuple[int, float]] = None,
+    ) -> Dict[str, Any]:
+        method = path.rsplit("/", 1)[-1]
+        self.__crl.check_call(method, wait=True)
+        result = super()._query_raw(path, data, headers, timeout)
+        return result
 
     # --------------------------------
 
