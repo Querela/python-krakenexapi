@@ -6,4 +6,4 @@ krakenexapi.api
     :members:
     :undoc-members:
     :private-members:
-    :show-interitance:
+    :show-inheritance:
