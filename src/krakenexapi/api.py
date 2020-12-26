@@ -261,8 +261,8 @@ class _CallRateLimitInfo:
 
     def decay(self):
         now = time()
-        seconds_gone = round(now - self._last_time)
-        self._counter = max(0, self._counter - self._decay * seconds_gone)
+        seconds_gone = now - self._last_time
+        self._counter = max(0.0, self._counter - self._decay * seconds_gone)
         self._last_time = now
 
     def time_to_call(self, cost: float) -> float:
