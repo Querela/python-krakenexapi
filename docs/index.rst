@@ -11,6 +11,7 @@ Contents
    reference/index
    contributing
    authors
+   License <license>
    changelog
 
 Indices and tables

@@ -9,6 +9,11 @@ black
 bandit
 safety
 
+# docs
+darglint
+#pyment
+doq
+
 # contributing
 pre-commit
 dco-check
