@@ -44,3 +44,9 @@ autodoc_member_order = "bysource"
 napoleon_use_ivar = True
 napoleon_use_rtype = False
 napoleon_use_param = False
+
+linkcheck_ignore = [
+    # Kraken documentation links
+    r"^https://support\.kraken\.com/hc/en-us/articles/",
+    r"^https://www\.kraken\.com/features/api",
+]

@@ -34,8 +34,10 @@ __all__ = [
 
 # ----------------------------------------------------------------------------
 
+#: Nonce value *offset*, nonce value will start from year ``2020``
 NONCE_OFFSET = -datetime(2020, 1, 1).timestamp()
 
+#: List of allowed public endpoints
 API_METHODS_PUBLIC = [
     "Time",
     "SystemStatus",
@@ -47,6 +49,7 @@ API_METHODS_PUBLIC = [
     "Trades",
     "Spread",
 ]
+#: List of allowed private endpoints
 API_METHODS_PRIVATE = [
     "Balance",
     "TradeBalance",
@@ -100,6 +103,8 @@ class NoSuchAPIMethod(KrakenExAPIError):
 
 
 class RawKrakenExAPI:
+    """Raw Kraken Exchange API adspter."""
+
     api_domain = "https://api.kraken.com"
 
     def __init__(self, key: Optional[str] = None, secret: Optional[str] = None):
