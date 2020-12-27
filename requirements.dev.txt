@@ -8,6 +8,10 @@ black
 # static code analysis
 bandit
 safety
+flake8
+flake8-bandit
+flake8-docstrings
+flake8-rst-docstrings
 
 # docs
 darglint
