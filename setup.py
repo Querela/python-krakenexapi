@@ -19,7 +19,7 @@ def read(*names, **kwargs):
 
 setup(
     name="krakenexapi",
-    version="0.0.0",
+    version="0.0.1",
     license="MIT",
     description="A Kraken Exchange API adapter.",
     long_description="%s\n%s"

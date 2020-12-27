@@ -51,9 +51,9 @@ Overview
     :alt: Supported implementations
     :target: https://pypi.org/project/krakenexapi
 
-.. |commits-since| image:: https://img.shields.io/github/commits-since/Querela/python-krakenexapi/v0.0.0.svg
+.. |commits-since| image:: https://img.shields.io/github/commits-since/Querela/python-krakenexapi/v0.0.1.svg
     :alt: Commits since latest release
-    :target: https://github.com/Querela/python-krakenexapi/compare/v0.0.0...master
+    :target: https://github.com/Querela/python-krakenexapi/compare/v0.0.1...master
 
 
 
