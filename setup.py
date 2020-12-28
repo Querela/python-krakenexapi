@@ -70,6 +70,10 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "requests>=2.25,<3",
+        "dataclasses;python_version=='3.6'",
     ],
-    extras_require={},
+    extras_require={
+        # see: https://hynek.me/articles/conditional-python-dependencies/
+        # ":python_version<'3.7'": ["dataclasses"],
+    },
 )

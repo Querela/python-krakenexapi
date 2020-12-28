@@ -1,6 +1,8 @@
 # tests
 tox
 pytest
+pytest-mock
+pytest-randomly
 
 # code formatter + checks?
 black

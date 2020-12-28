@@ -158,7 +158,7 @@ class RawKrakenExAPI:
 
         result = resp.json()
         if result.get("error", None):
-            raise KrakenExAPIError("Recieved response: " + ",".join(result["error"]))
+            raise KrakenExAPIError("Recieved response: " + ", ".join(result["error"]))
         return result["result"]
 
     def _sign(self, api_path: str, data: Dict[str, Any]) -> str:
