@@ -119,16 +119,15 @@ def test_query_private_ok_fake(mocker):
     ret = api.query_private("Balance", **dict(b=5))
     mockquery.assert_called_once()
     mocksign.assert_called_once()
-    cargs = mockquery.call_args.args
+    cargs, ckwargs = mockquery.call_args
     assert cargs[0] == "/0/private/Balance"
-    cargs = mockquery.call_args.kwargs
-    assert ("b", 5) in cargs["data"].items()
-    assert "nonce" in cargs["data"]
-    assert cargs["headers"] == {
+    assert ("b", 5) in ckwargs["data"].items()
+    assert "nonce" in ckwargs["data"]
+    assert ckwargs["headers"] == {
         "API-Key": FAKE_KEY,
         "API-Sign": mocksign.return_value,
     }
-    cargs = mocksign.call_args.args
+    cargs, _ = mocksign.call_args
     assert cargs[0] == "/0/private/Balance"
     assert ("b", 5) in cargs[1].items()
     assert "nonce" in cargs[1]
