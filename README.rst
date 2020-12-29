@@ -10,14 +10,26 @@ Overview
     * - docs
       - |docs|
     * - tests
-      - | |travis| |requires|
+      - | |ghaw-tox| |travis| |requires| |ghaw-dco|
         | |coveralls| |codecov|
     * - package
-      - | |version| |wheel| |supported-versions| |supported-implementations|
+      - | |version| |wheel| |supported-versions| |supported-implementations| |ghaw-pypi|
         | |commits-since|
 .. |docs| image:: https://readthedocs.org/projects/python-krakenexapi/badge/?style=flat
     :target: https://readthedocs.org/projects/python-krakenexapi
     :alt: Documentation Status
+
+.. |ghaw-tox| image:: https://github.com/Querela/python-krakenexapi/workflows/Python%20tox%20Tests/badge.svg
+    :alt: GitHub Actions Workflow - Tox Tests
+    :target: https://github.com/Querela/python-krakenexapi/actions?query=workflow%3A%22Python+tox+Tests%22
+
+.. |ghaw-dco| image:: https://github.com/Querela/python-krakenexapi/workflows/Check%20DCO/badge.svg
+    :alt: GitHub Actions Workflow - Check DCO
+    :target: https://github.com/Querela/python-krakenexapi/actions?query=workflow%3A%22Check+DCO%22
+
+.. |ghaw-pypi| image:: https://github.com/Querela/python-krakenexapi/workflows/Upload%20Python%20Package/badge.svg
+    :alt: GitHub Actions Workflow - Publish tagged version to PyPI
+    :target: https://github.com/Querela/python-krakenexapi/actions?query=workflow%3A%22Upload+Python+Package%22
 
 .. |travis| image:: https://api.travis-ci.com/Querela/python-krakenexapi.svg?branch=master
     :alt: Travis-CI Build Status

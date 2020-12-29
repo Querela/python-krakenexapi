@@ -482,10 +482,7 @@ class BasicKrakenExAPIPublicMethods:
         self, pair: str, interval: Optional[int] = None, since: Optional[int] = None
     ) -> Tuple[List[List[Any]], int]:
         data = {}
-        if pair:
-            if isinstance(pair, str):
-                pair = [pair]
-            data["pair"] = ",".join(pair)
+        data["pair"] = pair
         if interval:
             assert interval in (1, 5, 15, 30, 60, 240, 1440, 10080, 21600)
             data["interval"] = interval
@@ -513,10 +510,7 @@ class BasicKrakenExAPIPublicMethods:
         self, pair: str, count: Optional[int] = None
     ) -> Tuple[List, List]:
         data = {}
-        if pair:
-            if isinstance(pair, str):
-                pair = [pair]
-            data["pair"] = ",".join(pair)
+        data["pair"] = pair
         if count:
             data["count"] = count
 
@@ -544,10 +538,7 @@ class BasicKrakenExAPIPublicMethods:
         self, pair: str, since: Optional[int] = None
     ) -> Tuple[List[List[Any]], int]:
         data = {}
-        if pair:
-            if isinstance(pair, str):
-                pair = [pair]
-            data["pair"] = ",".join(pair)
+        data["pair"] = pair
         if since:
             data["since"] = since
 
@@ -576,10 +567,7 @@ class BasicKrakenExAPIPublicMethods:
         self, pair: str, since: Optional[int] = None
     ) -> Tuple[List[List[Any]], int]:
         data = {}
-        if pair:
-            if isinstance(pair, str):
-                pair = [pair]
-            data["pair"] = ",".join(pair)
+        data["pair"] = pair
         if since:
             data["since"] = since
 
