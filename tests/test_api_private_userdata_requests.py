@@ -90,7 +90,7 @@ def test_get_trade_volume(mocker, api_fake):
     mockquery.return_value = ret_pair
     ret = api_fake.get_trade_volume("xxbtzeur")
     assert ret == ret_pair_f
-    assert ret_base_f.items() in ret.items()
+    assert ret_base_f.items() <= ret.items()
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
