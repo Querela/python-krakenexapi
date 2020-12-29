@@ -5,6 +5,11 @@ Changelog
 WIP
 ---
 
+* Add tests (raw query, public + private API).
+* Add tooling for docs, checks.
+* Add meta info dataclasses...
+* Fix many minor issues, badges, docs, workflows/tests.
+
 0.0.1 (2020-12-27)
 ------------------
 

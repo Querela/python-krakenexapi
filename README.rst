@@ -10,11 +10,11 @@ Overview
     * - docs
       - |docs|
     * - tests
-      - | |ghaw-tox| |travis| |requires| |ghaw-dco|
+      - | |ghaw-tox| |travis| |requires| |ghaw-dco| |black|
         | |coveralls| |codecov|
     * - package
       - | |version| |wheel| |supported-versions| |supported-implementations| |ghaw-pypi|
-        | |commits-since|
+        | |license| |commits-since|
 .. |docs| image:: https://readthedocs.org/projects/python-krakenexapi/badge/?style=flat
     :target: https://readthedocs.org/projects/python-krakenexapi
     :alt: Documentation Status
@@ -38,6 +38,10 @@ Overview
 .. |requires| image:: https://requires.io/github/Querela/python-krakenexapi/requirements.svg?branch=master
     :alt: Requirements Status
     :target: https://requires.io/github/Querela/python-krakenexapi/requirements/?branch=master
+
+.. |black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :alt: Code style: black
+    :target: https://github.com/psf/black
 
 .. |coveralls| image:: https://coveralls.io/repos/Querela/python-krakenexapi/badge.svg?branch=master&service=github
     :alt: Coverage Status
@@ -63,17 +67,19 @@ Overview
     :alt: Supported implementations
     :target: https://pypi.org/project/krakenexapi
 
+.. |license| image:: https://img.shields.io/github/license/mashape/apistatus.svg
+    :alt: MIT license
+    :target: https://github.com/Querela/python-krakenexapi/blob/master/LICENSE
+
 .. |commits-since| image:: https://img.shields.io/github/commits-since/Querela/python-krakenexapi/v0.0.1.svg
     :alt: Commits since latest release
     :target: https://github.com/Querela/python-krakenexapi/compare/v0.0.1...master
-
-
 
 .. end-badges
 
 A Kraken Exchange API adapter.
 
-* Free software: MIT license
+* Free software: `MIT license <https://github.com/Querela/python-krakenexapi/blob/master/LICENSE>`_
 
 Installation
 ============
