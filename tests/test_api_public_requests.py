@@ -317,6 +317,10 @@ def test_get_ohlc_data(mocker, api_public):
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
+    with pytest.raises(AssertionError):
+        api_public.get_ohlc_data("xxbtzeur", interval=3)
+    mockquery.assert_not_called()
+
 
 def test_get_order_book(mocker, api_public):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
@@ -401,6 +405,3 @@ def test_get_recent_spread_data(mocker, api_public):
     assert api_public.get_recent_spread_data("xxbtzeur") == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
-
-
-#

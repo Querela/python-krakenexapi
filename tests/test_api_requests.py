@@ -1,5 +1,3 @@
-from base64 import b64encode
-
 import pytest
 
 from krakenexapi.api import KrakenExAPIError
@@ -104,17 +102,13 @@ def test_query_private_no_key(mocker):
     mockquery.assert_not_called()
 
 
-FAKE_KEY = b64encode(b"key").decode("utf-8")
-FAKE_SECRET = b64encode(b"secret").decode("utf-8")
-
-
-def test_query_private_ok_fake(mocker):
+def test_query_private_ok_fake(mocker, api_fake_key, api_fake_secret):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI._query_raw")
     mocksign = mocker.patch("krakenexapi.api.RawKrakenExAPI._sign")
     mockquery.return_value = {"k": "123"}
     mocksign.return_value = "sign"
 
-    api = RawKrakenExAPI(key=FAKE_KEY, secret=FAKE_SECRET)
+    api = RawKrakenExAPI(key=api_fake_key, secret=api_fake_secret)
 
     ret = api.query_private("Balance", **dict(b=5))
     mockquery.assert_called_once()
@@ -124,7 +118,7 @@ def test_query_private_ok_fake(mocker):
     assert ("b", 5) in ckwargs["data"].items()
     assert "nonce" in ckwargs["data"]
     assert ckwargs["headers"] == {
-        "API-Key": FAKE_KEY,
+        "API-Key": api_fake_key,
         "API-Sign": mocksign.return_value,
     }
     cargs, _ = mocksign.call_args

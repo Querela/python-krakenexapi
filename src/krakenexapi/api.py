@@ -535,7 +535,7 @@ class BasicKrakenExAPIPublicMethods:
         return asks, bids
 
     def _get_recent_trades(
-        self, pair: str, since: Optional[int] = None
+        self, pair: str, since: Optional[str] = None
     ) -> Tuple[List[List[Any]], int]:
         data = {}
         data["pair"] = pair
@@ -549,7 +549,7 @@ class BasicKrakenExAPIPublicMethods:
         return result, last
 
     def get_recent_trades(
-        self, pair: str, since: Optional[int] = None
+        self, pair: str, since: Optional[str] = None
     ) -> Tuple[List[List[Any]], int]:
         result, last = self._get_recent_trades(pair, since)
 
