@@ -24,7 +24,6 @@ from . import __version__
 
 
 __all__ = [
-    "RawKrakenExAPI",
     "BasicKrakenExAPI",
     "KrakenExAPIError",
     "NoPrivateKey",
@@ -87,12 +86,19 @@ API_METHODS_PRIVATE = [
 
 
 class KrakenExAPIError(Exception):
-    """Generic error"""
+    """Generic error."""
+
+
+class APIRateLimitExceeded(KrakenExAPIError):
+    """API Error: EAPI:Rate limit exceeded."""
+
+
+class APIArgumentUsageError(KrakenExAPIError, ValueError):
+    """Error from Kraken API if arguments incorrectly supplied or used or values not supported."""
 
 
 class NoPrivateKey(KrakenExAPIError):
-    """Thrown if trying to use a private Kraken Exchange API without
-    a private key."""
+    """Thrown if trying to use a private Kraken Exchange API without a private key."""
 
 
 class NoSuchAPIMethod(KrakenExAPIError):
@@ -153,11 +159,17 @@ class RawKrakenExAPI:
         headers: Dict[str, Any],
         timeout: Optional[Tuple[int, float]] = None,
     ) -> Dict[str, Any]:
+        # NOTE: dev
+        # print(f"query: {path}: {data}")
         url = f"{self.api_domain}{path}"
         resp = self.session.post(url, data=data, headers=headers, timeout=timeout)
 
         result = resp.json()
         if result.get("error", None):
+            if "EAPI:Rate limit exceeded" in result["error"]:
+                raise APIRateLimitExceeded()
+            if "EGeneral:Invalid arguments" in result["error"]:
+                raise APIArgumentUsageError()
             raise KrakenExAPIError("Recieved response: " + ", ".join(result["error"]))
         return result["result"]
 
@@ -241,7 +253,7 @@ class _RecentSpreadEntry(NamedTuple):
 
 def _fix_float_type(data: Any) -> Any:
     if isinstance(data, str):
-        if data and all(c in "0123456789." for c in data):
+        if data and all(c in "0123456789.-" for c in data):
             data = float(data)
     elif isinstance(data, dict):
         for k, v in data.items():
@@ -282,6 +294,10 @@ class _CallRateLimitInfo:
         cost = cost if cost is not None else self._cost
         return self._counter + cost <= self._limit
 
+    def set_exceeded(self):
+        self._counter = self._limit + self._decay * 3
+        self._last_time = time()
+
     def check(self, cost: Optional[Union[int, float]] = None) -> bool:
         self.decay()
         cost = cost if cost is not None else self._cost
@@ -314,15 +330,18 @@ class KrakenExAPICallRateLimiter:
         #   max: 1
 
     def _reset_account_crl(self):
-        if self._tier == "Starter":
-            crl = _CallRateLimitInfo(limit=15.0, cost=1.0, decay=0.33)
+        crl = _CallRateLimitInfo(limit=float("inf"), cost=0.0, decay=0.0)
 
-        elif self._tier == "Intermediate":
-            crl = _CallRateLimitInfo(limit=20.0, cost=1.0, decay=0.5)
-        elif self._tier == "Pro":
-            crl = _CallRateLimitInfo(limit=20.0, cost=1.0, decay=1.0)
-        else:
-            crl = _CallRateLimitInfo(limit=float("inf"), cost=0.0, decay=0.0)
+        if self._tier:
+            tier = self._tier.lower().strip()
+            if tier == "starter":
+                crl = _CallRateLimitInfo(limit=15.0, cost=1.0, decay=0.33)
+
+            elif tier == "intermediate":
+                crl = _CallRateLimitInfo(limit=20.0, cost=1.0, decay=0.5)
+            elif tier == "pro":
+                crl = _CallRateLimitInfo(limit=20.0, cost=1.0, decay=1.0)
+
         self._crl_private = crl
 
     @staticmethod
@@ -347,10 +366,23 @@ class KrakenExAPICallRateLimiter:
             crl = self._crl_public
             cost = None
 
+        # NOTE: dev
+        # print(
+        #     f"crl: {method} c:{cost} {crl._counter:.1f}/{crl._limit} - {crl.time_to_call(cost or 1)}s"
+        # )
+
         if wait:
             crl.check_and_wait(cost)
             return True
         return crl.check(cost)
+
+    def set_exceeded(self, method):
+        if self._is_private(method):
+            crl = self._crl_private
+        else:
+            crl = self._crl_public
+
+        crl.set_exceeded()
 
 
 # ------------------------------------
@@ -632,8 +664,8 @@ class BasicKrakenExAPIPrivateUserDataMethods:
         self,
         trades: Optional[bool] = None,
         userref: Optional[str] = None,
-        start: Optional[Union[int, str]] = None,
-        end: Optional[Union[int, str]] = None,
+        start: Optional[Union[int, float, str]] = None,
+        end: Optional[Union[int, float, str]] = None,
         offset: Optional[int] = None,
         closetime: Optional[str] = None,
     ) -> Tuple[Dict[str, Dict[str, Any]], int]:
@@ -687,8 +719,8 @@ class BasicKrakenExAPIPrivateUserDataMethods:
         self,
         type: Optional[str] = None,
         trades: Optional[bool] = None,
-        start: Optional[Union[int, str]] = None,
-        end: Optional[Union[int, str]] = None,
+        start: Optional[Union[int, float, str]] = None,
+        end: Optional[Union[int, float, str]] = None,
         offset: Optional[int] = None,
     ) -> Tuple[Dict[str, Dict[str, Any]], int]:
         data = {}
@@ -765,8 +797,8 @@ class BasicKrakenExAPIPrivateUserDataMethods:
         self,
         asset: Optional[Union[str, List[str]]] = None,
         type: Optional[str] = None,
-        start: Optional[Union[int, str]] = None,
-        end: Optional[Union[int, str]] = None,
+        start: Optional[Union[int, float, str]] = None,
+        end: Optional[Union[int, float, str]] = None,
         offset: Optional[int] = None,
     ) -> Tuple[Dict[str, Dict[str, Any]], int]:
         data = {}
@@ -775,7 +807,7 @@ class BasicKrakenExAPIPrivateUserDataMethods:
                 asset = [asset]
             data["asset"] = ",".join(asset)
         if type:
-            assert type in ("all", "deposit", "withdrawl", "trade", "margin")
+            assert type in ("all", "deposit", "withdrawal", "trade", "margin")
             data["type"] = type
         if start:
             data["start"] = start
@@ -857,7 +889,7 @@ class BasicKrakenExAPI(
         self,
         key: Optional[str] = None,
         secret: Optional[str] = None,
-        tier: Optional[str] = None,
+        tier: Optional[str] = "Starter",
     ):
         super().__init__(key=key, secret=secret)
         self.__crl = KrakenExAPICallRateLimiter(tier)
@@ -873,7 +905,11 @@ class BasicKrakenExAPI(
     ) -> Dict[str, Any]:
         method = path.rsplit("/", 1)[-1]
         self.__crl.check_call(method, wait=True)
-        result = super()._query_raw(path, data, headers, timeout)
+        try:
+            result = super()._query_raw(path, data, headers, timeout)
+        except APIRateLimitExceeded:
+            self.__crl.set_exceeded(method)
+            raise
         return result
 
     # --------------------------------

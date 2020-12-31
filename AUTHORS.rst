@@ -2,4 +2,4 @@
 Authors
 =======
 
-* Erik Körner - none
+* Erik Körner - ekdev@live.de
