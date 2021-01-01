@@ -9,6 +9,8 @@ from typing import Union
 
 from .api import BasicKrakenExAPIPrivateUserDataMethods
 from .api import BasicKrakenExAPIPublicMethods
+from .api import gather_ledgers
+from .api import gather_trades
 
 # ----------------------------------------------------------------------------
 
@@ -221,14 +223,7 @@ def build_trading_transactions(
     start: Optional[Union[int, float, str]] = None,
 ) -> List[TradingTransaction]:
     # query all entries
-    trade_entries = dict()
-    offset, total = 0, 1
-    while offset < total:
-        entries, total = api.get_trades_history(start=start, offset=offset)
-        if not entries:
-            break
-        trade_entries.update(entries)
-        offset += len(entries)
+    trade_entries = gather_trades(api, start=start)
 
     # wrap/convert
     transactions = list()
@@ -260,26 +255,8 @@ def build_funding_transactions(
 ) -> List[FundingTransaction]:
     # query all entries
     funding_entries = dict()
-    offset, total = 0, 1
-    while offset < total:
-        entries, total = api.get_ledgers_info(
-            type="deposit", start=start, offset=offset
-        )
-        # NOTE: reports incorrect total (not subset count if type filtering)
-        if not entries:
-            break
-        funding_entries.update(entries)
-        offset += len(entries)
-
-    offset, total = 0, 1
-    while offset < total:
-        entries, total = api.get_ledgers_info(
-            type="withdrawal", start=start, offset=offset
-        )
-        if not entries:
-            break
-        funding_entries.update(entries)
-        offset += len(entries)
+    funding_entries.update(gather_ledgers(api, type="deposit", start=start))
+    funding_entries.update(gather_ledgers(api, type="withdrawal", start=start))
 
     # wrap/convert
     transactions = list()

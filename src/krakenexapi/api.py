@@ -793,7 +793,7 @@ class BasicKrakenExAPIPrivateUserDataMethods:
 
         return result
 
-    def get_ledgers_info(
+    def get_ledgers(
         self,
         asset: Optional[Union[str, List[str]]] = None,
         type: Optional[str] = None,
@@ -825,7 +825,7 @@ class BasicKrakenExAPIPrivateUserDataMethods:
 
         return result, amount
 
-    def get_ledgers(self, lid: Union[str, List[str]]) -> Dict[str, Dict[str, Any]]:
+    def get_ledgers_info(self, lid: Union[str, List[str]]) -> Dict[str, Dict[str, Any]]:
         data = {}
         if isinstance(lid, str):
             lid = [lid]
@@ -913,6 +913,61 @@ class BasicKrakenExAPI(
         return result
 
     # --------------------------------
+
+
+# ----------------------------------------------------------------------------
+
+
+def gather_closed_orders(
+    api: BasicKrakenExAPIPrivateUserDataMethods, *args, **kwargs
+) -> Dict[str, Any]:
+    order_entries = dict()
+
+    offset: int = kwargs.pop("offset", 0)
+    total = offset + 1
+    while offset < total:
+        entries, total = api.get_closed_orders(*args, offset=offset, **kwargs)
+        if not entries:
+            break
+        order_entries.update(entries)
+        offset += len(entries)
+
+    return order_entries
+
+
+def gather_trades(
+    api: BasicKrakenExAPIPrivateUserDataMethods, *args, **kwargs
+) -> Dict[str, Any]:
+    trade_entries = dict()
+
+    offset = kwargs.pop("offset", 0)
+    total = offset + 1
+    while offset < total:
+        entries, total = api.get_trades_history(*args, offset=offset, **kwargs)
+        if not entries:
+            break
+        trade_entries.update(entries)
+        offset += len(entries)
+
+    return trade_entries
+
+
+def gather_ledgers(
+    api: BasicKrakenExAPIPrivateUserDataMethods, *args, **kwargs
+) -> Dict[str, Any]:
+    ledger_entries = dict()
+
+    offset = kwargs.pop("offset", 0)
+    total = offset + 1
+    while offset < total:
+        entries, total = api.get_ledgers(*args, offset=offset, **kwargs)
+        # NOTE: reports incorrect total (not subset count if type filtering)
+        if not entries:
+            break
+        ledger_entries.update(entries)
+        offset += len(entries)
+
+    return ledger_entries
 
 
 # ----------------------------------------------------------------------------
