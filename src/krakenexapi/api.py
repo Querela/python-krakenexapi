@@ -26,6 +26,8 @@ from . import __version__
 __all__ = [
     "BasicKrakenExAPI",
     "KrakenExAPIError",
+    "APIRateLimitExceeded",
+    "APIArgumentUsageError",
     "NoPrivateKey",
     "NoSuchAPIMethod",
 ]

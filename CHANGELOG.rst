@@ -9,7 +9,8 @@ WIP
 * Add tooling for docs, checks.
 * Add meta info dataclasses...
 * Fix many minor issues, badges, docs, workflows/tests.
-* Add wrappers around transactions, handlingi, statistics etc.
+* Add wrappers around transactions, handling, statistics etc.
+* Rename private user data ledgers endpoints!
 
 0.0.1 (2020-12-27)
 ------------------

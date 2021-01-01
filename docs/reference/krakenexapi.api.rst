@@ -70,6 +70,17 @@ Private Endpoints
     :undoc-members:
     :private-members:
 
+Utility functions
+-----------------
+
+To ease the gathering of complete lists of orders/trades/ledger entries.
+*The Kraken API will for some endpoints with possibly a large amount of entries split the response into chunks of 50 (or similar) and subsequent calls can use the* ``ofs`` (`offset` parameter) *and the returned* ``total`` *to gather all entries as needed.*
+*Note, that for some endpoints and argument choices the total will not be correct and the endpoint will return an empty dictionary instead. (which the functions below handle for you)*
+
+.. autofunction:: krakenexapi.api.gather_closed_orders
+.. autofunction:: krakenexapi.api.gather_ledgers
+.. autofunction:: krakenexapi.api.gather_trades
+
 Call Rate Limiting
 ------------------
 
@@ -92,6 +103,14 @@ Exceptions
 ----------
 
 .. autoexception:: krakenexapi.api.KrakenExAPIError
+    :members:
+    :show-inheritance:
+
+.. autoexception:: krakenexapi.api.APIRateLimitExceeded
+    :members:
+    :show-inheritance:
+
+.. autoexception:: krakenexapi.api.APIArgumentUsageError
     :members:
     :show-inheritance:
 
