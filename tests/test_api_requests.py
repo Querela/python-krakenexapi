@@ -1,9 +1,9 @@
 import pytest
 
-from krakenexapi.api import KrakenExAPIError
-from krakenexapi.api import NoPrivateKey
-from krakenexapi.api import NoSuchAPIMethod
 from krakenexapi.api import RawKrakenExAPI
+from krakenexapi.exceptions import KrakenExAPIError
+from krakenexapi.exceptions import NoPrivateKey
+from krakenexapi.exceptions import NoSuchAPIMethod
 
 
 def test_query_raw_normal(mocker):

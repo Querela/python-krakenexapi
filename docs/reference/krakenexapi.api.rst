@@ -104,26 +104,4 @@ The Kraken Exchange used different quotas for its API methods, see the article `
 Exceptions
 ----------
 
-.. autoexception:: krakenexapi.api.KrakenExAPIError
-    :members:
-    :show-inheritance:
-
-.. autoexception:: krakenexapi.api.APIRateLimitExceeded
-    :members:
-    :show-inheritance:
-
-.. autoexception:: krakenexapi.api.APIArgumentUsageError
-    :members:
-    :show-inheritance:
-
-.. autoexception:: krakenexapi.api.NoPrivateKey
-    :members:
-    :show-inheritance:
-
-.. autoexception:: krakenexapi.api.NoSuchAPIMethod
-    :members:
-    :show-inheritance:
-
-.. autoexception:: krakenexapi.api.APIPermissionDenied
-    :members:
-    :show-inheritance:
+See :mod:`krakenexapi.exceptions`.

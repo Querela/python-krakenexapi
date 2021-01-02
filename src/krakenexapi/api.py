@@ -19,6 +19,12 @@ from urllib.parse import urlencode
 import requests
 
 from . import __version__
+from .exceptions import APIArgumentUsageError
+from .exceptions import APIPermissionDenied
+from .exceptions import APIRateLimitExceeded
+from .exceptions import KrakenExAPIError
+from .exceptions import NoPrivateKey
+from .exceptions import NoSuchAPIMethod
 
 # ----------------------------------------------------------------------------
 
@@ -85,33 +91,6 @@ API_METHODS_PRIVATE = [
     #
     "GetWebSocketsToken",
 ]
-
-
-# ----------------------------------------------------------------------------
-
-
-class KrakenExAPIError(Exception):
-    """Generic error."""
-
-
-class APIRateLimitExceeded(KrakenExAPIError):
-    """API Error: EAPI:Rate limit exceeded."""
-
-
-class APIArgumentUsageError(KrakenExAPIError, ValueError):
-    """Error from Kraken API if arguments incorrectly supplied or used or values not supported."""
-
-
-class NoPrivateKey(KrakenExAPIError):
-    """Thrown if trying to use a private Kraken Exchange API without a private key."""
-
-
-class NoSuchAPIMethod(KrakenExAPIError):
-    """Error thrown if trying to use an invalid API method."""
-
-
-class APIPermissionDenied(KrakenExAPIError):
-    """Error when trying to call API mezhods without given permission."""
 
 
 # ----------------------------------------------------------------------------
