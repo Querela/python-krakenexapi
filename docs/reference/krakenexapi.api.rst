@@ -63,12 +63,14 @@ Private Endpoints
 .. autoclass:: krakenexapi.api.BasicKrakenExAPIPrivateUserTradingMethods
     :members:
     :undoc-members:
-    :private-members:
 
 .. autoclass:: krakenexapi.api.BasicKrakenExAPIPrivateUserFundingMethods
     :members:
     :undoc-members:
-    :private-members:
+
+.. autoclass:: krakenexapi.api.BasicKrakenExAPIPrivateWebsocketMethods
+    :members:
+    :undoc-members:
 
 Utility functions
 -----------------
@@ -119,5 +121,9 @@ Exceptions
     :show-inheritance:
 
 .. autoexception:: krakenexapi.api.NoSuchAPIMethod
+    :members:
+    :show-inheritance:
+
+.. autoexception:: krakenexapi.api.APIPermissionDenied
     :members:
     :show-inheritance:

@@ -171,8 +171,10 @@ class Currency:
         return cls.__currencies[symbol.upper()]
 
     @classmethod
-    def all_symbols(cls) -> Set[str]:
-        return set(cls.__currencies.keys())
+    def all_symbols(cls, unique: bool = True) -> Set[str]:
+        if not unique:
+            return set(cls.__currencies.keys())
+        return {c.symbol.upper() for c in cls.__currencies.values()}
 
     # --------------------------------
 
@@ -234,8 +236,10 @@ class CurrencyPair:
         return cls.__currency_pairs[symbol.upper()]
 
     @classmethod
-    def all_symbols(cls) -> Set[str]:
-        return set(cls.__currency_pairs.keys())
+    def all_symbols(cls, unique: bool = True) -> Set[str]:
+        if not unique:
+            return set(cls.__currency_pairs.keys())
+        return {c.symbol.upper() for c in cls.__currency_pairs.values()}
 
     # --------------------------------
 

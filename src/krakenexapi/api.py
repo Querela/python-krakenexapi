@@ -28,6 +28,7 @@ __all__ = [
     "KrakenExAPIError",
     "APIRateLimitExceeded",
     "APIArgumentUsageError",
+    "APIPermissionDenied",
     "NoPrivateKey",
     "NoSuchAPIMethod",
 ]
@@ -35,8 +36,8 @@ __all__ = [
 
 # ----------------------------------------------------------------------------
 
-#: Nonce value *offset*, nonce value will start from year ``2020``
-NONCE_OFFSET = -datetime(2020, 1, 1).timestamp()
+#: Nonce value *offset*, nonce value will start from year ``2021``
+NONCE_OFFSET = -datetime(2021, 1, 1).timestamp()
 
 #: List of allowed public endpoints
 API_METHODS_PUBLIC = [
@@ -81,6 +82,8 @@ API_METHODS_PRIVATE = [
     "RetrieveExport",
     "ExportStatus",
     "RemoveExport",
+    #
+    "GetWebSocketsToken",
 ]
 
 
@@ -105,6 +108,10 @@ class NoPrivateKey(KrakenExAPIError):
 
 class NoSuchAPIMethod(KrakenExAPIError):
     """Error thrown if trying to use an invalid API method."""
+
+
+class APIPermissionDenied(KrakenExAPIError):
+    """Error when trying to call API mezhods without given permission."""
 
 
 # ----------------------------------------------------------------------------
@@ -172,6 +179,10 @@ class RawKrakenExAPI:
                 raise APIRateLimitExceeded()
             if "EGeneral:Invalid arguments" in result["error"]:
                 raise APIArgumentUsageError()
+            if "EGeneral:Permission denied" in result["error"]:
+                raise APIPermissionDenied()
+            if "EAPI:Invalid nonce" in result["error"]:
+                pass
             raise KrakenExAPIError("Recieved response: " + ", ".join(result["error"]))
         return result["result"]
 
@@ -880,11 +891,22 @@ class BasicKrakenExAPIPrivateUserFundingMethods:
     # --------------------------------
 
 
+class BasicKrakenExAPIPrivateWebsocketMethods:
+    def get_websocket_token(self) -> str:
+        result = self.query_private("GetWebSocketsToken")
+        # assert result["expires"] == 900
+        result = result["token"]
+        return result
+
+    # --------------------------------
+
+
 class BasicKrakenExAPI(
     BasicKrakenExAPIPublicMethods,
     BasicKrakenExAPIPrivateUserDataMethods,
     BasicKrakenExAPIPrivateUserTradingMethods,
     BasicKrakenExAPIPrivateUserFundingMethods,
+    BasicKrakenExAPIPrivateWebsocketMethods,
     RawKrakenExAPI,
 ):
     def __init__(

@@ -66,7 +66,8 @@ def test_currency_properties(mocker):
     assert c1.symbol == "Sym"
     assert not c1.is_fiat
     assert not c1.is_staked
-    assert Currency.all_symbols() == {"SYM", "NAM"}
+    assert Currency.all_symbols() == {"SYM"}
+    assert Currency.all_symbols(unique=False) == {"SYM", "NAM"}
 
     c2 = Currency("ZEUR", "EUR", 8, 3)
     assert c2.symbol == "ZEUR"
@@ -92,10 +93,11 @@ def test_currency_singleton(mocker):
     assert Currency.all_symbols() == set()
 
     c1 = Currency("Sym", "Nam", 2, 1)
-    assert Currency.all_symbols() == {"SYM", "NAM"}
+    assert Currency.all_symbols() == {"SYM"}
+    assert Currency.all_symbols(unique=False) == {"SYM", "NAM"}
 
     _ = Currency("ZSYM2", "ZSym2", 2, 1)
-    assert Currency.all_symbols() == {"SYM", "NAM", "ZSYM2"}
+    assert Currency.all_symbols(unique=False) == {"SYM", "NAM", "ZSYM2"}
 
     with pytest.raises(AssertionError):
         Currency("Sym", "Nam3", 3, 2)
@@ -131,7 +133,12 @@ def test_currency_from_fakeapi_two_currencies(mocker):
     Currency.build_from_api(fakeapi)
     fakeapi.get_asset_info.assert_called_once_with()
 
-    assert Currency.all_symbols() == {"XZEC", "ZEUR", "XTZ.S"} | {"ZEC", "EUR", "XTZ.S"}
+    assert Currency.all_symbols() == {"XZEC", "ZEUR", "XTZ.S"}
+    assert Currency.all_symbols(unique=False) == {"XZEC", "ZEUR", "XTZ.S"} | {
+        "ZEC",
+        "EUR",
+        "XTZ.S",
+    }
 
 
 def test_currencypair_properties(mocker):
@@ -143,7 +150,12 @@ def test_currencypair_properties(mocker):
     c1 = Currency("Sym", "Nam", 2, 1)
     c2 = Currency("Sym2", "Nam2", 2, 1)
     c3 = Currency("ZSYM3", "Nam3", 2, 1)
-    assert Currency.all_symbols() == {"SYM", "SYM2", "ZSYM3"} | {"NAM", "NAM2", "NAM3"}
+    assert Currency.all_symbols() == {"SYM", "SYM2", "ZSYM3"}
+    assert Currency.all_symbols(unique=False) == {"SYM", "SYM2", "ZSYM3"} | {
+        "NAM",
+        "NAM2",
+        "NAM3",
+    }
     assert not c1.is_fiat
     assert not c2.is_fiat
     assert c3.is_fiat
@@ -152,7 +164,8 @@ def test_currencypair_properties(mocker):
     cpcf2 = CurrencyPair("S2", "S2S", "S2/S", 6, c2, c3, 100)
     cpcc = CurrencyPair("S3", "S3S", "S3/S", 6, c1, c2, 100)
     cpff = CurrencyPair("S4", "S4S", "S4/S", 6, c3, c3, 100)
-    assert CurrencyPair.all_symbols() == {"S1", "S2", "S3", "S4"} | {
+    assert CurrencyPair.all_symbols() == {"S1", "S2", "S3", "S4"}
+    assert CurrencyPair.all_symbols(unique=False) == {"S1", "S2", "S3", "S4"} | {
         "SS",
         "S2S",
         "S3S",
@@ -178,7 +191,11 @@ def test_currencypair_singleton(mocker):
 
     cp1 = CurrencyPair("SYMZSYM3", "SS", "S/S", 1, c1, c3, 0.01)
     cp2 = CurrencyPair("SYM2ZSYM3", "S2S", "S2/S", 6, c2, c3, 100)
-    assert CurrencyPair.all_symbols() == {"SYMZSYM3", "SYM2ZSYM3"} | {"SS", "S2S"}
+    assert CurrencyPair.all_symbols() == {"SYMZSYM3", "SYM2ZSYM3"}
+    assert CurrencyPair.all_symbols(unique=False) == {"SYMZSYM3", "SYM2ZSYM3"} | {
+        "SS",
+        "S2S",
+    }
 
     with pytest.raises(AssertionError):
         CurrencyPair("SYMZSYM3", "SSx", "S/Sx", 1, c1, c3, 0.01)
@@ -252,8 +269,11 @@ def test_currencypair_from_fakeapi(mocker):
     fakeapi.get_asset_info.assert_called_once_with()
     fakeapi.get_asset_pairs.assert_called_once_with()
 
-    assert Currency.all_symbols() == {"XZEC", "ZEUR", "XTZ.S"} | {"ZEC", "EUR"}
-    assert CurrencyPair.all_symbols() == {"XZECZEUR"} | {"ZECEUR"}
+    assert Currency.all_symbols(unique=False) == {"XZEC", "ZEUR", "XTZ.S"} | {
+        "ZEC",
+        "EUR",
+    }
+    assert CurrencyPair.all_symbols(unique=False) == {"XZECZEUR"} | {"ZECEUR"}
     cb = Currency.find("XZEC")
     cq = Currency.find("ZEUR")
     cpr = CurrencyPair.find("XZECZEUR")
