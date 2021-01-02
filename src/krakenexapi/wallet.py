@@ -17,23 +17,114 @@ from .api import gather_trades
 
 # see:
 # - https://support.kraken.com/hc/en-us/articles/202944246-All-available-currencies-and-trading-pairs-on-Kraken
-# - https://support.kraken.com/hc/en-us/articles/360000678446-Cryptocurrencies-available-on-Kraken
 # - https://support.kraken.com/hc/en-us/articles/360039879471-What-is-Asset-S-and-Asset-M-
 
 
-@dataclass
+#: Lookup of currency name to symbol and short description.
+#:
+#: Notes
+#: -----
+#: Extracted from
+#: `Kraken Cryptocurrencies <https://support.kraken.com/hc/en-us/articles/360000678446-Cryptocurrencies-available-on-Kraken>`_
+#: help page on 2021-01-02.
+CURRENCY_SYMBOLS = {
+    # fist currencies
+    "AUD": {"name": "Australian Dollar", "letter": "A$"},
+    "CAD": {"name": "Canadian Dollar", "letter": "C$"},
+    "CHF": {"name": "Swiss Franc", "letter": "Fr."},
+    "EUR": {"name": "Euro", "letter": "€"},
+    "GBP": {"name": "Pound Sterling", "letter": "£"},
+    "JPY": {"name": "Japanese Yen)", "letter": "¥"},
+    "USD": {"name": "US Dollar", "letter": "$"},
+    # crypto currencies
+    "AAVE": {"name": "Aave", "letter": "Å"},
+    "ALGO": {"name": "Algorand", "letter": "Ⱥ"},
+    "ANT": {"name": "Aragon", "letter": "ȁ"},
+    "REP": {"name": "Augur", "letter": "Ɍ"},
+    "REPV2": {"name": "Augur v2", "letter": "ɍ"},
+    "BAT": {"name": "Basic Attention Token", "letter": "⟁"},
+    "BAL": {"name": "Balancer", "letter": "ᙖ"},
+    "XBT": {"name": "Bitcoin", "letter": "₿"},
+    "BCH": {"name": "Bitcoin Cash", "letter": "฿"},
+    "ADA": {"name": "Cardano", "letter": "₳"},
+    "LINK": {"name": "Chainlink", "letter": "⬡"},
+    "COMP": {"name": "Compound", "letter": "Ꮯ"},
+    "ATOM": {"name": "Cosmos", "letter": "⚛"},
+    "CRV": {"name": "Curve", "letter": "ᑕ"},
+    "DAI": {"name": "Dai*", "letter": "⬙"},
+    "DASH": {"name": "Dash", "letter": "Đ"},
+    "MANA": {"name": "Decentraland", "letter": "Ɯ"},
+    "XDG": {"name": "Dogecoin", "letter": "Ð"},
+    "EOS": {"name": "EOS", "letter": "Ȅ"},
+    "ETH": {"name": 'Ethereum ("Ether")', "letter": "Ξ"},
+    "ETH2": {"name": "Ethereum 2", "letter": "Ξ"},  # TODO: inofficial
+    "ETC": {"name": "Ethereum Classic", "letter": "ξ"},
+    "FIL": {"name": "Filecoin", "letter": "ƒ"},
+    "GNO": {"name": "Gnosis", "letter": "Ğ"},
+    "ICX": {"name": "ICON", "letter": "𝗜"},
+    "KAVA": {"name": "Kava", "letter": "Ҝ"},
+    "KEEP": {"name": "Keep Network", "letter": "ķ"},
+    "KSM": {"name": "Kusama", "letter": "Ķ"},
+    "KNC": {"name": "Kyber Network", "letter": "Ƙ"},
+    "LSK": {"name": "Lisk", "letter": "Ⱡ"},
+    "LTC": {"name": "Litecoin", "letter": "Ł"},
+    "MLN": {"name": "Melon", "letter": "M"},
+    "XMR": {"name": "Monero", "letter": "ɱ"},
+    "NANO": {"name": "Nano", "letter": "𝑁"},
+    "OMG": {"name": "OmiseGO", "letter": "Ŏ"},
+    "OXT": {"name": "Orchid", "letter": "Ö"},
+    "PAXG": {"name": "PAX Gold", "letter": "ⓟ"},
+    "DOT": {"name": "Polkadot", "letter": "●"},
+    "QTUM": {"name": "Qtum", "letter": "ℚ"},
+    "XRP": {"name": "Ripple", "letter": "Ʀ"},
+    "SC": {"name": "Siacoin", "letter": "S"},
+    "XLM": {"name": "Stellar Lumens", "letter": "*"},
+    "STORJ": {"name": "Storj", "letter": "Ŝ"},
+    "SNX": {"name": "Synthetix", "letter": "Š"},
+    "TBTC": {"name": "tBTC", "letter": "Ţ"},
+    "USDT": {"name": "Tether (Omni Layer, ERC20)*", "letter": "₮"},
+    "XTZ": {"name": "Tezos", "letter": "ꜩ"},
+    "GRT": {"name": "The Graph", "letter": "⌗"},
+    "TRX": {"name": "Tron", "letter": "Ť"},
+    "UNI": {"name": "Uniswap", "letter": "Ǖ"},
+    "USDC": {"name": "USD Coin*", "letter": "ⓒ"},
+    "WAVES": {"name": "WAVES", "letter": "♦"},
+    "YFI": {"name": "Yearn Finance", "letter": "Ƴ"},
+    "ZEC": {"name": "Zcash", "letter": "ⓩ"},
+}
+
+
+@dataclass(frozen=True)
 class Currency:
     symbol: str
     name: str
     decimals: int
     display_decimals: int
+    letter: Optional[str] = None
+    description: Optional[str] = None
 
     __currencies: ClassVar[Dict[str, "Currency"]] = dict()
 
     def __post_init__(self):
         symbol = self.symbol.upper()
+        name = self.name.upper()
+
         assert symbol not in self.__class__.__currencies
         self.__class__.__currencies[symbol] = self
+
+        if name != symbol:
+            assert name not in self.__class__.__currencies
+            self.__class__.__currencies[name] = self
+
+        name = name.split(".", 1)[0]
+        # assign currency symbols
+        if name in CURRENCY_SYMBOLS:
+            object.__setattr__(self, "letter", CURRENCY_SYMBOLS[name]["letter"])
+            object.__setattr__(self, "description", CURRENCY_SYMBOLS[name]["name"])
+        else:
+            # FLOW, FLOWH, FEE
+            # raise RuntimeError(f"New currencies to Kraken Exchange added? - {name}")
+            pass
 
     # --------------------------------
 
@@ -68,7 +159,7 @@ class Currency:
     # --------------------------------
 
     def format_value(self, value: float) -> str:
-        return f"{value:.{self.display_decimals}f}"
+        return f"{value:.{self.display_decimals}f}{self.letter or ''}"
 
     def round_value(self, value: float) -> float:
         return round(value, self.decimals)
@@ -99,7 +190,7 @@ class Currency:
     # --------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class CurrencyPair:
     symbol: str
     altname: str
@@ -113,8 +204,14 @@ class CurrencyPair:
 
     def __post_init__(self):
         symbol = self.symbol.upper()
+        altname = self.altname.upper()
+
         assert symbol not in self.__class__.__currency_pairs
         self.__class__.__currency_pairs[symbol] = self
+
+        if altname != symbol:
+            assert altname not in self.__class__.__currency_pairs
+            self.__class__.__currency_pairs[altname] = self
 
     # --------------------------------
 
@@ -168,7 +265,7 @@ class CurrencyPair:
 # ----------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class TradingTransaction:
     currency_pair: CurrencyPair
     price: float
@@ -197,7 +294,7 @@ class CryptoSellTransaction(TradingTransaction):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class FundingTransaction:
     currency: Currency
     amount: float
@@ -312,8 +409,37 @@ class Asset:
 
     def _update(self):
         # query ledgers from api
-        # - use + update last id
-        raise NotImplementedError
+        txs = build_trading_transactions(self.__api, self.__last_txid)
+
+        # TODO: always fo update of balsnce?
+
+        if not txs:
+            return
+
+        # update last txid
+        txs = sorted(txs, key=lambda t: t.timestamp)
+        self.__last_txid = txs[-1].txid
+
+        # filter transactions
+        txs = [t for t in txs if t.currency_pair.base == self.__currency]
+        known_txids = {t.txid for t in self.__transactions}
+        txs = [t for t in txs if t.txid not in known_txids]
+
+        self.__transactions.extend(txs)
+        if txs:
+            self.__transactions[:] = sorted(
+                self.__transactions, key=lambda t: t.timestamp
+            )
+
+        # update amount
+        # NOTE: that amount from transactions and from account_balance will
+        # differ!
+        balances = self.__api.get_account_balance()
+        self.__amount = balances.get(self.__currency.symbol, 0.0)
+
+    @property
+    def has_transactions(self) -> bool:
+        return bool(self.__transactions)
 
     # --------------------------------
 
@@ -327,33 +453,66 @@ class Asset:
 
     # --------------------------------
 
+    # TODO: check and compute for all transactions quote currency values to
+    # selected quote currency!!
+
     @property
     def price_buy_avg(self) -> float:
-        pass
+        txs = [t for t in self.__transactions if isinstance(t, CryptoBuyTransaction)]
+        if not txs:
+            return float("nan")
+        # price * amount = cost
+        # price = cost / amount
+        return sum([t.cost for t in txs]) / sum([t.amount for t in txs])
 
     @property
     def price_sell_avg(self) -> float:
-        pass
+        txs = [t for t in self.__transactions if isinstance(t, CryptoSellTransaction)]
+        if not txs:
+            return float("nan")
+        return sum([t.cost for t in txs]) / sum([t.amount for t in txs])
 
     @property
-    def price_for_noloss(self) -> float:
-        pass
+    def price_avg(self) -> float:
+        return -self.cost / self.amount
+
+    @property
+    def price_for_noloss(self, fees_sell: float = 0.26) -> float:
+        fees_buy = 0.26
+        fees_buy = (self.fees_buy + self.fees_sell) / (self.cost_buy + self.cost_sell)
+        return self.price_avg * ((1 + fees_buy) / (1 - fees_sell))
 
     @property
     def cost_buy(self) -> float:
-        pass
+        txs = [t for t in self.__transactions if isinstance(t, CryptoSellTransaction)]
+        return sum([t.cost for t in txs])
 
     @property
     def cost_sell(self) -> float:
-        pass
+        txs = [t for t in self.__transactions if isinstance(t, CryptoBuyTransaction)]
+        return sum([t.cost for t in txs])
+
+    @property
+    def cost(self) -> float:
+        return -self.cost_buy + self.cost_sell
 
     @property
     def fees_buy(self) -> float:
-        pass
+        txs = [t for t in self.__transactions if isinstance(t, CryptoBuyTransaction)]
+        return sum([t.fees for t in txs])
 
     @property
     def fees_sell(self) -> float:
-        pass
+        txs = [t for t in self.__transactions if isinstance(t, CryptoSellTransaction)]
+        return sum([t.fees for t in txs])
+
+    @property
+    def fees(self) -> float:
+        return sum([t.fees for t in self.__transactions])
+
+    @property
+    def is_loss(self) -> bool:
+        raise NotImplementedError
 
     # --------------------------------
     # --------------------------------
