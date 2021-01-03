@@ -5,6 +5,9 @@ import pytest
 pytestmark = [pytest.mark.liveapi, pytest.mark.apipublic]
 
 
+# ----------------------------------------------------------------------------
+
+
 def test_get_server_time(api_public):
     st_raw = api_public._get_server_time()
     assert isinstance(st_raw, dict)
@@ -16,6 +19,9 @@ def test_get_server_time(api_public):
     now = datetime.datetime.now()
     diff = abs(now - st)
     assert diff.total_seconds() <= 2 * 24 * 60 * 60
+
+
+# ----------------------------------------------------------------------------
 
 
 # NOTE: guard against missing markers in fixture
