@@ -71,6 +71,7 @@ setup(
     install_requires=[
         "requests>=2.25,<3",
         "dataclasses;python_version=='3.6'",
+        "wrapt",
     ],
     extras_require={
         # see: https://hynek.me/articles/conditional-python-dependencies/

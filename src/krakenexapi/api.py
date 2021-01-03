@@ -17,6 +17,7 @@ from typing import Union
 from urllib.parse import urlencode
 
 import requests
+from wrapt import synchronized
 
 from . import __version__
 from .exceptions import APIArgumentUsageError
@@ -114,8 +115,10 @@ class RawKrakenExAPI:
     def load_key(self, path: Optional[PathLike] = None):
         if not path:
             path = Path("kraken.key")
-        elif path.is_dir():
-            path = path / "kraken.key"
+        else:
+            path = Path(path)
+            if path.is_dir():
+                path = path / "kraken.key"
 
         if not path.exists():
             raise NoPrivateKey("No key file found!")
@@ -259,6 +262,7 @@ def _fix_float_type(data: Any) -> Any:
 # ------------------------------------
 
 
+@synchronized
 class _CallRateLimitInfo:
     def __init__(self, limit: float = 1, cost: float = 1, decay: float = 1.0):
         self._limit = limit
