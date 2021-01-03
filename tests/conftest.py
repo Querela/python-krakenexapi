@@ -4,6 +4,95 @@ from random import choices
 
 import pytest
 
+# ----------------------------------------------------------------------------
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--live-api",
+        action="store_true",
+        help="run the tests with live API requests (marked with 'liveapi')",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "liveapi: mark test to execute real API requests"
+    )
+    config.addinivalue_line(
+        "markers", "apiprivate: mark test to run private API method tests"
+    )
+    config.addinivalue_line(
+        "markers", "apipublic: mark test to run public API method tests"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    # for item in items:
+    #     if "apiprivate" in item.keywords:
+    #         item.add_marker(pytest.mark.liveapi)
+    #     if "apipublic" in item.keywords:
+    #         item.add_marker(pytest.mark.liveapi)
+
+    if config.getoption("--live-api"):
+        # --live-api given in cli: do not skip live API request tests
+        return
+
+    skip_liveapi = pytest.mark.skip(reason="need '--live-api' option to run")
+    for item in items:
+        if "liveapi" in item.keywords:
+            item.add_marker(skip_liveapi)
+
+
+# NOTE: for print output specify: -rA
+
+
+def pytest_runtest_setup(item):
+    # print(item)
+    # print(list(item.keywords))
+    # print([m.name for m in item.own_markers])
+    # print(item.config.option.markexpr)
+    # print(Expression.compile(item.config.option.markexpr))
+    pass
+
+
+# ----------------------------------------------------------------------------
+
+
+# NOTE: marker fixtures for development, to guard against missing annotations
+
+
+@pytest.fixture(scope="function")
+def _marker_liveapi(request):
+    """Guarded against missing marker: liveapi."""
+    # NOTE: only works in function scope
+    # so, wrapping required if session scoped
+    marker = request.node.get_closest_marker("liveapi")
+    if marker is None:
+        request.raiseerror("requires 'liveapi' marker on test")
+
+    return None
+
+
+@pytest.fixture(scope="function")
+def _marker_apipublic(request):
+    """Guarded against missing marker: apipublic."""
+    marker = request.node.get_closest_marker("apipublic")
+    if marker is None:
+        request.raiseerror("requires 'apipublic' marker on test")
+
+    return None
+
+
+@pytest.fixture(scope="function")
+def _marker_apiprivate(request):
+    """Guarded against missing marker: apiprivate."""
+    marker = request.node.get_closest_marker("apiprivate")
+    if marker is None:
+        request.raiseerror("requires 'apiprivate' marker on test")
+
+    return None
+
 
 @pytest.fixture(scope="session")
 def api_public():
@@ -13,6 +102,39 @@ def api_public():
     api = BasicKrakenExAPI()
 
     return api
+
+
+# @pytest.fixture(scope="function")
+# def api_public(_marker_liveapi, _marker_apipublic, _api_public):
+#     """BasicKrakenExAPI instance for shared call rate limiting.
+#
+#     Guarded against missing markers. Wraps session-scoped `_api_public`.
+#     """
+#     return _api_public
+
+
+@pytest.fixture(scope="session")
+def _api_private():
+    """BasicKrakenExAPI instance for private API requests and shared call rate limiting."""
+    from krakenexapi.api import BasicKrakenExAPI
+    from krakenexapi.wallet import CurrencyPair
+
+    api = BasicKrakenExAPI()
+    api.load_key()
+
+    print("load currency pairs ...")
+    CurrencyPair.build_from_api(api)
+
+    return api
+
+
+@pytest.fixture(scope="function")
+def api_private(_marker_liveapi, _marker_apiprivate, _api_private):
+    """BasicKrakenExAPI instance for private API requests and shared call rate limiting.
+
+    Guarded against missing markers. Wraps session-scoped `_api_private`.
+    """
+    return _api_private
 
 
 @pytest.fixture(scope="function")
@@ -61,3 +183,6 @@ def api_fake(api_fake_keyfile):
     api.load_key(api_fake_keyfile)
 
     return api
+
+
+# ----------------------------------------------------------------------------

@@ -460,6 +460,25 @@ class Asset:
     # TODO: check and compute for all transactions quote currency values to
     # selected quote currency!!
 
+    # NOTE: transfer transactions (aka staking) can be ignored?
+    # --> we query amount, staking has no fees(?), nothing to do with fiat?
+
+    @property
+    def amount_by_transactions(self) -> float:
+        amount_buy = sum(
+            t.amount for t in self.__transactions if isinstance(t, CryptoBuyTransaction)
+        )
+        amount_sell = sum(
+            t.amount
+            for t in self.__transactions
+            if isinstance(t, CryptoSellTransaction)
+        )
+        return amount_buy - amount_sell
+
+    @property
+    def amount_by_transfers(self) -> float:
+        raise NotImplementedError()
+
     @property
     def price_buy_avg(self) -> float:
         txs = [t for t in self.__transactions if isinstance(t, CryptoBuyTransaction)]
@@ -480,20 +499,19 @@ class Asset:
     def price_avg(self) -> float:
         return -self.cost / self.amount
 
-    @property
     def price_for_noloss(self, fees_sell: float = 0.26) -> float:
-        fees_buy = 0.26
-        fees_buy = (self.fees_buy + self.fees_sell) / (self.cost_buy + self.cost_sell)
-        return self.price_avg * ((1 + fees_buy) / (1 - fees_sell))
+        fees_sum = self.fees_percentage
+        assert 0 <= fees_sum <= 0.26
+        return self.price_avg * ((1 + fees_sum / 100) / (1 - fees_sell / 100))
 
     @property
     def cost_buy(self) -> float:
-        txs = [t for t in self.__transactions if isinstance(t, CryptoSellTransaction)]
+        txs = [t for t in self.__transactions if isinstance(t, CryptoBuyTransaction)]
         return sum([t.cost for t in txs])
 
     @property
     def cost_sell(self) -> float:
-        txs = [t for t in self.__transactions if isinstance(t, CryptoBuyTransaction)]
+        txs = [t for t in self.__transactions if isinstance(t, CryptoSellTransaction)]
         return sum([t.cost for t in txs])
 
     @property
@@ -515,8 +533,18 @@ class Asset:
         return sum([t.fees for t in self.__transactions])
 
     @property
+    def fees_percentage(self) -> float:
+        return 100 * self.fees / (self.cost_buy + self.cost_sell)
+
+    @property
     def is_loss(self) -> bool:
-        raise NotImplementedError
+        return self.cost <= 0
+
+    @property
+    def is_loss_at_market_price_sell(self) -> bool:
+        # 1) check current price lower than noloss price
+        # 2) check amount * market price + cost < 0
+        raise NotImplementedError()
 
     # --------------------------------
     # --------------------------------

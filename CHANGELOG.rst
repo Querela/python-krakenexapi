@@ -11,6 +11,9 @@ WIP
 * Fix many minor issues, badges, docs, workflows/tests.
 * Add wrappers around transactions, handling, statistics etc.
 * Rename private user data ledgers endpoints!
+* Extract exceptions into own module.
+* Start with websocket API.
+* Add live-api tests (markers, github workflow).
 
 0.0.1 (2020-12-27)
 ------------------
