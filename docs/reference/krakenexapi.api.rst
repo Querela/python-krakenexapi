@@ -1,7 +1,6 @@
 krakenexapi.api
 ===============
 
-
 .. automodule:: krakenexapi.api
 
 Raw API
@@ -18,6 +17,8 @@ Raw API
 .. autodata:: API_METHODS_PUBLIC
 
 .. autodata:: API_METHODS_PRIVATE
+
+.. autodata:: API_METHODS_NO_RETRY
 
 Notes
 ~~~~~
@@ -94,7 +95,6 @@ The Kraken Exchange used different quotas for its API methods, see the article `
 .. autoclass:: krakenexapi.api._CallRateLimitInfo
     :members:
     :undoc-members:
-    :private-members:
 
 .. autoclass:: krakenexapi.api.KrakenExAPICallRateLimiter
     :members:

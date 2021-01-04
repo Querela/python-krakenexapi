@@ -21,6 +21,7 @@ from wrapt import synchronized
 
 from . import __version__
 from .exceptions import APIArgumentUsageError
+from .exceptions import APIInvalidNonce
 from .exceptions import APIPermissionDenied
 from .exceptions import APIRateLimitExceeded
 from .exceptions import KrakenExAPIError
@@ -30,15 +31,7 @@ from .exceptions import NoSuchAPIMethod
 # ----------------------------------------------------------------------------
 
 
-__all__ = [
-    "BasicKrakenExAPI",
-    "KrakenExAPIError",
-    "APIRateLimitExceeded",
-    "APIArgumentUsageError",
-    "APIPermissionDenied",
-    "NoPrivateKey",
-    "NoSuchAPIMethod",
-]
+__all__ = ["BasicKrakenExAPI"]
 
 
 # ----------------------------------------------------------------------------
@@ -93,6 +86,8 @@ API_METHODS_PRIVATE = [
     "GetWebSocketsToken",
 ]
 
+#: List of API methods where we do not want to retry.
+#: e. g. no repeated AddOrder because it might create duplicate orders.
 API_METHODS_NO_RETRY = [
     "AddOrder",
     "AddExport",
@@ -104,7 +99,13 @@ API_METHODS_NO_RETRY = [
 
 
 class RawKrakenExAPI:
-    """Raw Kraken Exchange API adspter."""
+    """Raw Kraken Exchange API adspter.
+
+    Attributes
+    ----------
+    session : requests.Session
+        :mod:`requests` session object (stores ``User-Agent``)
+    """
 
     api_domain = "https://api.kraken.com"
 
@@ -119,6 +120,38 @@ class RawKrakenExAPI:
         self.session.close()
 
     def load_key(self, path: Optional[PathLike] = None):
+        """Load private Kraken Exchange API key/secret.
+
+        Search order:
+
+        1. `path` if file, then load directly,
+        2. `path` is folder, append ``kraken.key`` and load,
+        3. no `path`, try to load locally from ``kraken.key``.
+
+        Raise :exc:`NoPrivateKey`, if
+
+        - no key file could be found,
+        - not both key/secret are found,
+        - secret is no valid base64.
+
+        Key file format::
+
+            key=your-key
+            secret=your-secret
+
+        Whitespaces will be stripped from front/end and around the
+        equal sign.
+
+        Parameters
+        ----------
+        path : Optional[PathLike], optional
+            Path to ``kraken.key`` file, by default None
+
+        Raises
+        ------
+        NoPrivateKey
+            If no key file could be found or key not valid (format).
+        """
         if not path:
             path = Path("kraken.key")
         else:
@@ -132,6 +165,7 @@ class RawKrakenExAPI:
         key = None
         secret = None
 
+        # parse from file
         with path.open("r", encoding="utf-8") as fp:
             for line in fp:
                 line = line.strip()
@@ -140,13 +174,30 @@ class RawKrakenExAPI:
                 elif line.lower().startswith("secret") and "=" in line:
                     secret = line.split("=", 1)[-1].lstrip()
 
+        # check secret
+        try:
+            _ = b64decode(secret, validate=True)
+        except Exception as ex:
+            raise NoPrivateKey("Invalid base64 secret!") from ex
+
         if key and secret:
             self.__api_key = key
             self.__api_secret = secret
+        else:
+            raise NoPrivateKey("Missing key or secret!")
 
     # --------------------------------
 
     def nonce(self) -> int:
+        """Nonce for API request. Should be monotonic.
+
+        Returns timestamps seconds + milliseconds.
+        Substracts seconds since 2021 (makes the nonce smaller).
+
+        Returns
+        -------
+        int
+        """
         return int((time() + NONCE_OFFSET) * 1000)
 
     def _query_raw(
@@ -170,11 +221,34 @@ class RawKrakenExAPI:
             if "EGeneral:Permission denied" in result["error"]:
                 raise APIPermissionDenied()
             if "EAPI:Invalid nonce" in result["error"]:
-                pass
+                # NOTE: *should* only happen if used concurrently,
+                # but can happen if requesting too fast, too.
+                raise APIInvalidNonce()
             raise KrakenExAPIError("Recieved response: " + ", ".join(result["error"]))
         return result["result"]
 
     def _sign(self, api_path: str, data: Dict[str, Any]) -> str:
+        """Create signature for private Kraken Exchange API request.
+
+        Parameters
+        ----------
+        api_path : str
+            API path (prefix + method)
+        data : Dict[str, Any]
+            API request data, must contain ``nonce``
+
+        Returns
+        -------
+        str
+            signature
+
+        Notes
+        -----
+
+        See `Kraken Exchange API Docs <https://www.kraken.com/features/api>`_,
+        `Example algorithm <https://support.kraken.com/hc/en-us/articles/360022635592-Generate-authentication-strings-REST-API->`_,
+        `Example client <https://support.kraken.com/hc/en-us/articles/360026949252-REST-API-Command-Line-Client>`_.
+        """
         postdata = urlencode(data)
         encoded = f"""{data["nonce"]}{postdata}""".encode("utf-8")
         encoded = hashlib.sha256(encoded).digest()
@@ -253,6 +327,24 @@ class _RecentSpreadEntry(NamedTuple):
 
 
 def _fix_float_type(data: Any) -> Any:
+    """Recursively convert all stringified floats back to :obj:`float`.
+
+    Convert only string that consist of the following characters:
+    `0123456789.-`
+
+    Background: Kraken Exchange API formats float values as string to
+    keep information about decimal precision.
+
+    Parameters
+    ----------
+    data : Any
+        Dictionaries, lists, or primitive types (string / rest)
+
+    Returns
+    -------
+    Any
+        Same as input, strings converted to floats.
+    """
     if isinstance(data, str):
         if data and all(c in "0123456789.-" for c in data):
             data = float(data)
@@ -388,6 +480,21 @@ class KrakenExAPICallRateLimiter:
 
 
 class RawCallRateLimitedKrakenExAPI(RawKrakenExAPI):
+    """Extend :class:`RawKrakenExAPI` with call rate limiting and request
+    retry mechanisms.
+
+    Parameters
+    ----------
+    tier : str, optional
+        Kraken verification level, can be "Starter", "Intermediate",
+        "Pro", by default "Starter"
+
+    Attributes
+    ----------
+    _num_retries : int
+        Maximum number of retries, by default 3
+    """
+
     def __init__(
         self,
         key: Optional[str] = None,
@@ -442,6 +549,11 @@ class RawCallRateLimitedKrakenExAPI(RawKrakenExAPI):
     ) -> Dict[str, Any]:
         try:
             return super().query_private(method, otp=otp, **kwargs)
+        except APIInvalidNonce:
+            # try again a single time, else fail
+            if method not in API_METHODS_NO_RETRY:
+                return super().query_private(method, otp=otp, **kwargs)
+            raise
         except APIRateLimitExceeded:
             # retry with exponential backoff
             if self._num_retries > 0 and method not in API_METHODS_NO_RETRY:
@@ -466,6 +578,20 @@ class RawCallRateLimitedKrakenExAPI(RawKrakenExAPI):
 
 
 class BasicKrakenExAPIPublicMethods:
+    """Public Kraken Exchange API endpoints.
+
+    Most methods have additional post-processing, like conversion of
+    strings to :obj:`float` (easier computation), or wrapping into
+    NamedTuples to allow better access.
+
+    Raw responses can be retrieved via ``_`` + method name.
+    Alternatively, the :meth:`RawKrakenExAPI.query_public` can be used.
+
+    Notes
+    -----
+    See `official API documentation (public) <https://www.kraken.com/features/api#public-market-data>`_
+    """
+
     def _get_server_time(self) -> Dict[str, Any]:
         return self.query_public("Time")
 
@@ -701,6 +827,23 @@ class BasicKrakenExAPIPublicMethods:
 
 
 class BasicKrakenExAPIPrivateUserDataMethods:
+    """Private Kraken Exchange API user data endpoints.
+
+    Endpoints to retrieve:
+
+    - orders (open/closed),
+    - transactions,
+    - ledger entries,
+    - account/trade balance, volume (fee information)
+
+    Methods with ``_info`` suffix allow retrieval of information by IDs,
+    others will return sliced subsets with a `total`/`offset`.
+
+    Notes
+    -----
+    See `official API documentation (user data) <https://www.kraken.com/features/api#private-user-data>`_
+    """
+
     def get_account_balance(self) -> Dict[str, float]:
         result = self.query_private("Balance")
 
@@ -944,18 +1087,35 @@ class BasicKrakenExAPIPrivateUserDataMethods:
 
 
 class BasicKrakenExAPIPrivateUserTradingMethods:
-    pass
+    """Private Kraken Exchange API user trading endpoints.
+
+    Notes
+    -----
+    See `official API documentation (user trading) <https://www.kraken.com/features/api#private-user-trading>`_
+    """
 
     # --------------------------------
 
 
 class BasicKrakenExAPIPrivateUserFundingMethods:
-    pass
+    """Private Kraken Exchange API user funding endpoints.
+
+    Notes
+    -----
+    See `official API documentation (user funding) <https://www.kraken.com/features/api#private-user-funding>`_
+    """
 
     # --------------------------------
 
 
 class BasicKrakenExAPIPrivateWebsocketMethods:
+    """Private Kraken Exchange API websocket endpoint.
+
+    Notes
+    -----
+    See `official API documentation (websocket) <https://www.kraken.com/features/api#ws-auth>`_
+    """
+
     def get_websocket_token(self) -> str:
         result = self.query_private("GetWebSocketsToken")
         # assert result["expires"] == 900
@@ -973,7 +1133,7 @@ class BasicKrakenExAPI(
     BasicKrakenExAPIPrivateWebsocketMethods,
     RawCallRateLimitedKrakenExAPI,
 ):
-    pass
+    """Basic Kraken Exchange API, public + private endpoints."""
 
     # --------------------------------
 
@@ -984,6 +1144,21 @@ class BasicKrakenExAPI(
 def gather_closed_orders(
     api: BasicKrakenExAPIPrivateUserDataMethods, *args, **kwargs
 ) -> Dict[str, Any]:
+    """Gather a complete list of closed orders.
+
+    Wraps :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_closed_orders`
+    and iteratively queries next subsets until everything retrieved.
+
+    Parameters
+    ----------
+    api : BasicKrakenExAPIPrivateUserDataMethods
+        An API instance with access to private user data endpoints
+
+    Returns
+    -------
+    Dict[str, Any]
+        same as :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_closed_orders`
+    """
     order_entries = dict()
 
     offset: int = kwargs.pop("offset", 0)
@@ -1001,6 +1176,21 @@ def gather_closed_orders(
 def gather_trades(
     api: BasicKrakenExAPIPrivateUserDataMethods, *args, **kwargs
 ) -> Dict[str, Any]:
+    """Gather a complete list of transactions (trades).
+
+    Wraps :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_trades_history`
+    and iteratively queries next subsets until everything retrieved.
+
+    Parameters
+    ----------
+    api : BasicKrakenExAPIPrivateUserDataMethods
+        An API instance with access to private user data endpoints
+
+    Returns
+    -------
+    Dict[str, Any]
+        same as :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_trades_history`
+    """
     trade_entries = dict()
 
     offset = kwargs.pop("offset", 0)
@@ -1018,6 +1208,25 @@ def gather_trades(
 def gather_ledgers(
     api: BasicKrakenExAPIPrivateUserDataMethods, *args, **kwargs
 ) -> Dict[str, Any]:
+    """Gather a complete list of ledger entries.
+
+    Wraps :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_ledgers`
+    and iteratively queries next subsets until everything retrieved.
+
+    Note, that :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_ledgers`
+    returns incorrect ``total`` if only parameterized with `type`,
+    which will be handled here.
+
+    Parameters
+    ----------
+    api : BasicKrakenExAPIPrivateUserDataMethods
+        An API instance with access to private user data endpoints
+
+    Returns
+    -------
+    Dict[str, Any]
+        same as :meth:`~BasicKrakenExAPIPrivateUserDataMethods.get_ledgers`
+    """
     ledger_entries = dict()
 
     offset = kwargs.pop("offset", 0)

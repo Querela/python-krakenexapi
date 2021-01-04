@@ -25,8 +25,8 @@ repos:
     rev: master
     hooks:
       - id: flake8
-  - repo: https://github.com/terrencepreilly/darglint
-    rev: master
-    hooks:
-      - id: darglint
-        exclude: ^tests/
+  # - repo: https://github.com/terrencepreilly/darglint
+  #   rev: master
+  #   hooks:
+  #     - id: darglint
+  #       exclude: ^tests/
