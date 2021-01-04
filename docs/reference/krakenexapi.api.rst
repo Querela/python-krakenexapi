@@ -101,6 +101,11 @@ The Kraken Exchange used different quotas for its API methods, see the article `
     :undoc-members:
     :private-members:
 
+.. autoclass:: krakenexapi.api.RawCallRateLimitedKrakenExAPI
+    :members:
+    :undoc-members:
+    :private-members:
+
 Exceptions
 ----------
 
