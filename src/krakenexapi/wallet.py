@@ -7,6 +7,7 @@ from typing import Optional
 from typing import Set
 from typing import Union
 
+from .api import BasicKrakenExAPI
 from .api import BasicKrakenExAPIPrivateUserDataMethods
 from .api import BasicKrakenExAPIPublicMethods
 from .api import gather_ledgers
@@ -316,75 +317,6 @@ class WithdrawalTransaction(FundingTransaction):
     pass
 
 
-# ------------------------------------
-
-
-def build_trading_transactions(
-    api: BasicKrakenExAPIPrivateUserDataMethods,
-    start: Optional[Union[int, float, str]] = None,
-) -> List[TradingTransaction]:
-    # query all entries
-    trade_entries = gather_trades(api, start=start)
-
-    # wrap/convert
-    transactions = list()
-    for txid, info in trade_entries.items():
-        params = {
-            "currency_pair": CurrencyPair.find(info["pair"]),
-            "price": info["price"],
-            "amount": info["vol"],
-            "cost": info["cost"],
-            "fees": info["fee"],
-            "timestamp": datetime.fromtimestamp(info["time"]),
-            "txid": txid,
-            "otxid": info["ordertxid"],
-        }
-        if info["type"] == "buy":
-            tx: TradingTransaction = CryptoBuyTransaction(**params)
-        elif info["type"] == "sell":
-            tx = CryptoSellTransaction(**params)
-        else:
-            raise RuntimeError(f"Unknoen transaction type: {info['type']}")
-        transactions.append(tx)
-
-    return transactions
-
-
-def build_funding_transactions(
-    api: BasicKrakenExAPIPrivateUserDataMethods,
-    start: Optional[Union[int, float, str]] = None,
-) -> List[FundingTransaction]:
-    # query all entries
-    funding_entries = dict()
-    funding_entries.update(gather_ledgers(api, type="deposit", start=start))
-    funding_entries.update(gather_ledgers(api, type="withdrawal", start=start))
-
-    # wrap/convert
-    transactions = list()
-    for lxid, info in funding_entries.items():
-        if info["type"] == "transfer":
-            # 'type': 'transfer', 'subtype': 'stakingfromspot'
-            # XTZ -> XTZ.S
-            continue
-
-        params = {
-            "currency": Currency.find(info["asset"]),
-            "amount": info["amount"],
-            "fees": info["fee"],
-            "timestamp": datetime.fromtimestamp(info["time"]),
-            "lxid": lxid,
-        }
-        if info["type"] == "deposit":
-            tx: FundingTransaction = DepositTransaction(**params)
-        elif info["type"] == "withdrawal":
-            tx = WithdrawalTransaction(**params)
-        else:
-            raise RuntimeError(f"Unknoen transaction type: {info['type']}")
-        transactions.append(tx)
-
-    return transactions
-
-
 # ----------------------------------------------------------------------------
 
 # basic assumptions
@@ -413,7 +345,7 @@ class Asset:
 
     def _update(self):
         # query ledgers from api
-        txs = build_trading_transactions(self.__api, self.__last_txid)
+        txs = Wallet.build_trading_transactions(self.__api, self.__last_txid, sort=True)
 
         # TODO: always fo update of balsnce?
 
@@ -421,7 +353,6 @@ class Asset:
             return
 
         # update last txid
-        txs = sorted(txs, key=lambda t: t.timestamp)
         self.__last_txid = txs[-1].txid
 
         # filter transactions
@@ -548,6 +479,301 @@ class Asset:
 
     # --------------------------------
     # --------------------------------
+
+
+class Fund:
+    def __init__(
+        self,
+        currency: Currency,
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+    ):
+        self.__currency = currency
+        self.__amount: float = 0.0
+        self.__transactions: List[FundingTransaction] = list()
+        self.__last_lxid: Optional[Union[int, str]] = None
+        self.__api = api
+
+        self._update()
+
+    # --------------------------------
+
+    def _update(self):
+        # query ledgers from api
+        txs = Wallet.build_funding_transactions(self.__api, self.__last_lxid, sort=True)
+
+        if not txs:
+            return
+
+        # update last txid
+        self.__last_lxid = txs[-1].lxid
+
+        # filter transactions
+        txs = [t for t in txs if t.currency == self.__currency]
+        known_lxids = {t.lxid for t in self.__transactions}
+        txs = [t for t in txs if t.lxid not in known_lxids]
+
+        self.__transactions.extend(txs)
+        if txs:
+            self.__transactions[:] = sorted(
+                self.__transactions, key=lambda t: t.timestamp
+            )
+
+        # update amount
+        # NOTE: that amount from transactions and from account_balance may
+        # differ?
+        balances = self.__api.get_account_balance()
+        self.__amount = balances.get(self.__currency.symbol, 0.0)
+
+    @property
+    def has_transactions(self) -> bool:
+        return bool(self.__transactions)
+
+    # --------------------------------
+
+    @property
+    def currency(self) -> Currency:
+        return self.__currency
+
+    @property
+    def amount(self) -> float:
+        return self.__amount
+
+    # --------------------------------
+
+    @property
+    def amount_deposit(self) -> float:
+        return sum(
+            t.amount for t in self.__transactions if isinstance(t, DepositTransaction)
+        )
+
+    @property
+    def amount_withdrawal(self) -> float:
+        return sum(
+            t.amount
+            for t in self.__transactions
+            if isinstance(t, WithdrawalTransaction)
+        )
+
+    @property
+    def amount_by_transactions(self) -> float:
+        return self.amount_deposit - self.amount_withdrawal
+
+    @property
+    def fees_deposit(self) -> float:
+        txs = [t for t in self.__transactions if isinstance(t, DepositTransaction)]
+        return sum([t.fees for t in txs])
+
+    @property
+    def fees_withdrawal(self) -> float:
+        txs = [t for t in self.__transactions if isinstance(t, WithdrawalTransaction)]
+        return sum([t.fees for t in txs])
+
+    @property
+    def fees(self) -> float:
+        return sum([t.fees for t in self.__transactions])
+
+    @property
+    def fees_percentage(self) -> float:
+        return 100 * self.fees / (self.amount_deposit + self.amount_withdrawal)
+
+    # --------------------------------
+
+
+# ----------------------------------------------------------------------------
+
+
+class Wallet:
+    def __init__(self, api: BasicKrakenExAPI):
+        self.api = api
+        self._last_txid: Optional[str] = None
+        self._last_lxid: Optional[str] = None
+        self._assets: Dict[Currency, Asset] = dict()
+        self._funds: Dict[Currency, Fund] = dict()
+
+    # --------------------------------
+
+    def _update(self):
+        self._update_assets()
+        self._update_funds()
+
+    def _update_assets(self):
+        if not self._assets:
+            txs = Wallet.build_trading_transactions(
+                self.api, self._last_txid, sort=True
+            )
+            if not txs:
+                return
+            self._last_txid = txs[-1].txid
+
+            assets = Wallet.build_assets_from_api(self.api)
+            self._assets.update({a.currency: a for a in assets})
+        else:
+            txs = Wallet.build_trading_transactions(
+                self.api, self._last_txid, sort=True
+            )
+            if not txs:
+                return
+            self._last_txid = txs[-1].txid
+
+            for asset in self._assets.values():
+                asset._update()
+
+    def _update_funds(self):
+        if not self._funds:
+            txs = Wallet.build_funding_transactions(
+                self.api, self._last_lxid, sort=True
+            )
+            if not txs:
+                return
+            self._last_lxid = txs[-1].lxid
+
+            funds = Wallet.build_funds_from_api(self.api)
+            self._funds.update({a.currency: a for a in funds})
+        else:
+            txs = Wallet.build_funding_transactions(
+                self.api, self._last_lxid, sort=True
+            )
+            if not txs:
+                return
+            self._last_lxid = txs[-1].lxid
+
+            for fund in self._funds.values():
+                fund._update()
+
+    def _check_new_transactions(self) -> bool:
+        raise NotImplementedError()
+
+    # --------------------------------
+
+    @staticmethod
+    def get_all_account_currencies(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+    ) -> List[Currency]:
+        # crypto (fiat?) trades
+        txs = Wallet.build_trading_transactions(api)
+        crs = {t.currency_pair.base for t in txs} | {t.currency_pair.quote for t in txs}
+
+        # deposits/withdrawals
+        txs = Wallet.build_funding_transactions(api)
+        crs |= {t.currency for t in txs}
+
+        # transfers/staking
+
+        # balances
+        crs |= {Currency.find(n) for n in api.get_account_balance().keys()}
+
+        return list(crs)
+
+    @staticmethod
+    def get_account_crypto_currencies(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+    ) -> List[Currency]:
+        crs = Wallet.get_all_account_currencies(api)
+        crs = [c for c in crs if not c.is_fiat]
+        return list(crs)
+
+    @staticmethod
+    def get_account_fiat_currencies(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+    ) -> List[Currency]:
+        crs = Wallet.get_all_account_currencies(api)
+        crs = [c for c in crs if c.is_fiat]
+        return list(crs)
+
+    @staticmethod
+    def build_assets_from_api(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+        fiat_currency: Optional[Currency] = None,
+    ):
+        if not fiat_currency:
+            fiat_currency = Currency.find("zeur")
+        crs = Wallet.get_account_crypto_currencies(api)
+        assets = [Asset(c, api, fiat_currency) for c in crs]
+        return assets
+
+    @staticmethod
+    def build_funds_from_api(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+    ):
+        crs = Wallet.get_account_fiat_currencies(api)
+        funds = [Fund(c, api) for c in crs]
+        return funds
+
+    @staticmethod
+    def build_funding_transactions(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+        start: Optional[Union[int, float, str]] = None,
+        sort: bool = True,
+    ) -> List[FundingTransaction]:
+        # query all entries
+        funding_entries = dict()
+        funding_entries.update(gather_ledgers(api, type="deposit", start=start))
+        funding_entries.update(gather_ledgers(api, type="withdrawal", start=start))
+
+        # wrap/convert
+        transactions = list()
+        for lxid, info in funding_entries.items():
+            if info["type"] == "transfer":
+                # 'type': 'transfer', 'subtype': 'stakingfromspot'
+                # XTZ -> XTZ.S
+                continue
+
+            params = {
+                "currency": Currency.find(info["asset"]),
+                "amount": info["amount"],
+                "fees": info["fee"],
+                "timestamp": datetime.fromtimestamp(info["time"]),
+                "lxid": lxid,
+            }
+            if info["type"] == "deposit":
+                tx: FundingTransaction = DepositTransaction(**params)
+            elif info["type"] == "withdrawal":
+                tx = WithdrawalTransaction(**params)
+            else:
+                raise RuntimeError(f"Unknoen transaction type: {info['type']}")
+            transactions.append(tx)
+
+        if sort:
+            transactions = sorted(transactions, key=lambda t: t.timestamp)
+
+        return transactions
+
+        # --------------------------------
+
+    @staticmethod
+    def build_trading_transactions(
+        api: BasicKrakenExAPIPrivateUserDataMethods,
+        start: Optional[Union[int, float, str]] = None,
+        sort: bool = True,
+    ) -> List[TradingTransaction]:
+        # query all entries
+        trade_entries = gather_trades(api, start=start)
+
+        # wrap/convert
+        transactions = list()
+        for txid, info in trade_entries.items():
+            params = {
+                "currency_pair": CurrencyPair.find(info["pair"]),
+                "price": info["price"],
+                "amount": info["vol"],
+                "cost": info["cost"],
+                "fees": info["fee"],
+                "timestamp": datetime.fromtimestamp(info["time"]),
+                "txid": txid,
+                "otxid": info["ordertxid"],
+            }
+            if info["type"] == "buy":
+                tx: TradingTransaction = CryptoBuyTransaction(**params)
+            elif info["type"] == "sell":
+                tx = CryptoSellTransaction(**params)
+            else:
+                raise RuntimeError(f"Unknoen transaction type: {info['type']}")
+            transactions.append(tx)
+
+        if sort:
+            transactions = sorted(transactions, key=lambda t: t.timestamp)
+
+        return transactions
 
 
 # ----------------------------------------------------------------------------

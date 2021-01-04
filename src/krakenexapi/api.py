@@ -93,6 +93,12 @@ API_METHODS_PRIVATE = [
     "GetWebSocketsToken",
 ]
 
+API_METHODS_NO_RETRY = [
+    "AddOrder",
+    "AddExport",
+    "Withdraw",
+    "WalletTransfer",
+]
 
 # ----------------------------------------------------------------------------
 
@@ -357,7 +363,7 @@ class KrakenExAPICallRateLimiter:
     def check_call(self, method: str, wait: bool = True) -> bool:
         if self._is_private(method):
             crl = self._crl_private
-            cost = self._get_cost(method)
+            cost: Optional[int] = self._get_cost(method)
         else:
             crl = self._crl_public
             cost = None
@@ -900,6 +906,7 @@ class BasicKrakenExAPI(
     ):
         super().__init__(key=key, secret=secret)
         self.__crl = KrakenExAPICallRateLimiter(tier)
+        self._num_retries = 3
 
     # --------------------------------
 
@@ -915,9 +922,52 @@ class BasicKrakenExAPI(
         try:
             result = super()._query_raw(path, data, headers, timeout)
         except APIRateLimitExceeded:
+            sleep(1)
             self.__crl.set_exceeded(method)
             raise
+
         return result
+
+    def query_public(self, method: str, **kwargs) -> Dict[str, Any]:
+        try:
+            return super().query_public(method, **kwargs)
+        except APIRateLimitExceeded:
+            # retry with exponential backoff
+            if self._num_retries > 0:
+                for i in range(self._num_retries):
+                    # NOTE: dev
+                    # print(f"Retry #{i+1}/{self._num_retries} for public: {method}")
+                    sleep(2 ** i)
+                    self.__crl.set_exceeded(method)
+
+                    try:
+                        return super().query_public(method, **kwargs)
+                    except APIRateLimitExceeded:
+                        pass
+
+            raise
+
+    def query_private(
+        self, method: str, otp: Optional[str] = None, **kwargs
+    ) -> Dict[str, Any]:
+        try:
+            return super().query_private(method, otp=otp, **kwargs)
+        except APIRateLimitExceeded:
+            # retry with exponential backoff
+            if self._num_retries > 0 and method not in API_METHODS_NO_RETRY:
+                for i in range(self._num_retries):
+                    # NOTE: dev
+                    # print(f"Retry #{i+1}/{self._num_retries} for private: {method}")
+                    sleep(2 ** (i + 1))
+                    self.__crl.set_exceeded(method)
+                    # self.__crl.check_call(method, wait=True)
+
+                    try:
+                        return super().query_private(method, otp=otp, **kwargs)
+                    except APIRateLimitExceeded:
+                        pass
+
+            raise
 
     # --------------------------------
 

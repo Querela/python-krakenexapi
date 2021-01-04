@@ -14,6 +14,9 @@ WIP
 * Extract exceptions into own module.
 * Start with websocket API.
 * Add live-api tests (markers, github workflow).
+* Call rate limiting - retry with backoff.
+* Add Funds (same as Assets) to ``wallet.py``.
+* Rewrite ``wallet.py``, group functions, add :class:`~krakenexapi.wallet.Wallet`.
 
 0.0.1 (2020-12-27)
 ------------------
