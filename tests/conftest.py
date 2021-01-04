@@ -174,12 +174,28 @@ def api_fake_keyfile(tmp_path, api_fake_key, api_fake_secret):
 
 
 @pytest.fixture(scope="function")
-def api_fake(api_fake_keyfile):
+def api_public_fake(monkeypatch):
+    """Faked `BasicKrakenExAPI` instance without fake key loaded. Should be used
+    for mocking public requests."""
+    from krakenexapi.api import BasicKrakenExAPI
+
+    api = BasicKrakenExAPI()
+    monkeypatch.delattr(api, "session")
+    monkeypatch.delattr("requests.sessions.Session.request")
+
+    return api
+
+
+@pytest.fixture(scope="function")
+def api_fake(api_fake_keyfile, monkeypatch):
     """Faked `BasicKrakenExAPI` instance with fake key loaded. Should be used
     for mocking requests."""
     from krakenexapi.api import BasicKrakenExAPI
 
     api = BasicKrakenExAPI()
+    monkeypatch.delattr(api, "session")
+    monkeypatch.delattr("requests.sessions.Session.request")
+
     api.load_key(api_fake_keyfile)
 
     return api

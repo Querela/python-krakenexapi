@@ -13,32 +13,32 @@ import pytest
 # because of user - those we tested in another file)
 
 
-def test_get_server_time(mocker, api_public):
+def test_get_server_time(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     mockquery.return_value = 1
-    assert api_public._get_server_time() == 1
+    assert api_public_fake._get_server_time() == 1
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
     dt = datetime.datetime.now()
     mockquery.return_value = {"unixtime": dt.timestamp()}  # 'rfc1123': ...
-    assert api_public.get_server_time() == dt
+    assert api_public_fake.get_server_time() == dt
     mockquery.assert_called_once()
 
 
-def test_get_system_status(mocker, api_public):
+def test_get_system_status(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     ret = {"status": "online", "timestamp": "2020-05-04T03:02:01Z"}
 
     mockquery.return_value = ret
-    assert api_public.get_system_status() == ret
+    assert api_public_fake.get_system_status() == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
 
-def test_get_asset_info(mocker, api_public):
+def test_get_asset_info(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     ret1 = {
@@ -85,34 +85,34 @@ def test_get_asset_info(mocker, api_public):
     }
 
     mockquery.return_value = ret1
-    assert api_public.get_asset_info("zeur") == ret1
+    assert api_public_fake.get_asset_info("zeur") == ret1
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_asset_info("ZeUr") == ret1
+    assert api_public_fake.get_asset_info("ZeUr") == ret1
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_asset_info(["ZEUR"]) == ret1
+    assert api_public_fake.get_asset_info(["ZEUR"]) == ret1
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
     mockquery.return_value = ret2
-    assert api_public.get_asset_info(["ZEUR", "XXBT"]) == ret2
+    assert api_public_fake.get_asset_info(["ZEUR", "XXBT"]) == ret2
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_asset_info("ZEUR,XXBT") == ret2
+    assert api_public_fake.get_asset_info("ZEUR,XXBT") == ret2
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
     # NOTE: the following is probably a bad test, test with real data?
     mockquery.return_value = ret3
-    assert api_public.get_asset_info() == ret3
+    assert api_public_fake.get_asset_info() == ret3
     mockquery.assert_called_once()
 
 
-def test_get_asset_pairs(mocker, api_public):
+def test_get_asset_pairs(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     ret_orig = {
@@ -205,28 +205,28 @@ def test_get_asset_pairs(mocker, api_public):
     # not sure what exactly the test will express (besides coverage ...)
     mockquery.return_value = ret_orig
 
-    assert api_public._get_asset_pairs() == ret_orig
+    assert api_public_fake._get_asset_pairs() == ret_orig
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public._get_asset_pairs_static_values() == ret_static
+    assert api_public_fake._get_asset_pairs_static_values() == ret_static
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_asset_pairs() == ret
+    assert api_public_fake.get_asset_pairs() == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_asset_pairs("xxbtzeur") == ret
+    assert api_public_fake.get_asset_pairs("xxbtzeur") == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_asset_pairs(["xxbtzeur"]) == ret
+    assert api_public_fake.get_asset_pairs(["xxbtzeur"]) == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
 
-def test_get_ticker_information(mocker, api_public):
+def test_get_ticker_information(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     # EQuery:Unknown asset pair
@@ -259,19 +259,19 @@ def test_get_ticker_information(mocker, api_public):
     }
 
     with pytest.raises(TypeError):
-        api_public.get_ticker_information()
+        api_public_fake.get_ticker_information()
 
     mockquery.return_value = ret_orig
-    assert api_public._get_ticker_information("xxbtzeur") == ret_orig
+    assert api_public_fake._get_ticker_information("xxbtzeur") == ret_orig
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
-    assert api_public.get_ticker_information("xxbtzeur") == ret
+    assert api_public_fake.get_ticker_information("xxbtzeur") == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
 
-def test_get_ohlc_data(mocker, api_public):
+def test_get_ohlc_data(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     from krakenexapi.api import _OHLCEntry
@@ -310,19 +310,19 @@ def test_get_ohlc_data(mocker, api_public):
     )
 
     with pytest.raises(TypeError):
-        api_public.get_ohlc_data()
+        api_public_fake.get_ohlc_data()
 
     mockquery.return_value = ret_orig
-    assert api_public.get_ohlc_data("xxbtzeur") == ret
+    assert api_public_fake.get_ohlc_data("xxbtzeur") == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
     with pytest.raises(AssertionError):
-        api_public.get_ohlc_data("xxbtzeur", interval=3)
+        api_public_fake.get_ohlc_data("xxbtzeur", interval=3)
     mockquery.assert_not_called()
 
 
-def test_get_order_book(mocker, api_public):
+def test_get_order_book(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     from krakenexapi.api import _OrderBookEntry
@@ -339,15 +339,15 @@ def test_get_order_book(mocker, api_public):
     )
 
     with pytest.raises(TypeError):
-        api_public.get_order_book()
+        api_public_fake.get_order_book()
 
     mockquery.return_value = ret_orig
-    assert api_public.get_order_book("xxbtzeur", 1) == ret
+    assert api_public_fake.get_order_book("xxbtzeur", 1) == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
 
-def test_get_recent_trades(mocker, api_public):
+def test_get_recent_trades(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     from krakenexapi.api import _RecentTradeEntry
@@ -376,15 +376,15 @@ def test_get_recent_trades(mocker, api_public):
     )
 
     with pytest.raises(TypeError):
-        api_public.get_recent_trades()
+        api_public_fake.get_recent_trades()
 
     mockquery.return_value = ret_orig
-    assert api_public.get_recent_trades("xxbtzeur") == ret
+    assert api_public_fake.get_recent_trades("xxbtzeur") == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
 
 
-def test_get_recent_spread_data(mocker, api_public):
+def test_get_recent_spread_data(mocker, api_public_fake):
     mockquery = mocker.patch("krakenexapi.api.RawKrakenExAPI.query_public")
 
     from krakenexapi.api import _RecentSpreadEntry
@@ -399,9 +399,9 @@ def test_get_recent_spread_data(mocker, api_public):
     )
 
     with pytest.raises(TypeError):
-        api_public.get_recent_spread_data()
+        api_public_fake.get_recent_spread_data()
 
     mockquery.return_value = ret_orig
-    assert api_public.get_recent_spread_data("xxbtzeur") == ret
+    assert api_public_fake.get_recent_spread_data("xxbtzeur") == ret
     mockquery.assert_called_once()
     mockquery.reset_mock()
