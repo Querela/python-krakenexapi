@@ -3,6 +3,8 @@ tox
 pytest
 pytest-mock
 pytest-randomly
+pytest-clarity
+#pytest-sugar
 
 # code formatter + checks?
 black

@@ -23,7 +23,7 @@ def test_asset_cost_price(api_private):
             for t in asset._Asset__transactions
         ]
     )
-    assert vol_transactions == asset.amount_by_transactions
+    pytest.approx(vol_transactions, asset.amount_by_transactions, 16)
 
 
 def test_asset_amounts(api_private):
